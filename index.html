@@ -995,7 +995,40 @@ function renderHistory(){
   const q=(document.getElementById('hist-search')||{}).value?.toLowerCase()||'';
   let sales=[...salesCache];if(q)sales=sales.filter(s=>s.customer?.toLowerCase().includes(q)||s.id?.toLowerCase().includes(q));
   const modeIcon={cash:'💵',upi:'📱',credit:'📒'};
-  document.getElementById('history-list').innerHTML=sales.length?sales.map(s=>`<div class="med-item" style="cursor:pointer;" onclick="viewInvoice('${s.id}')"><div class="med-avatar" style="background:var(--grad-purple);">🧾</div><div class="med-info"><div class="med-name" style="font-family:monospace;font-size:12px;">${s.id}</div><div class="med-meta">${new Date(s.date).toLocaleString('en-IN')} · ${s.customer}</div><div class="med-badges"><span class="badge badge-blue">${(s.items||[]).length} items</span><span class="badge ${s.payment_mode==='cash'?'badge-green':s.payment_mode==='upi'?'badge-blue':'badge-red'}">${modeIcon[s.payment_mode]||''} ${s.payment_mode||'cash'}</span></div></div><div style="text-align:right;"><div style="font-size:17px;font-weight:900;">₹${(s.total||0).toFixed(2)}</div><div style="font-size:11px;font-weight:700;color:#059669;margin-top:3px;">+₹${(s.profit||0).toFixed(2)}</div></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">🧾</div><p>No sales yet</p></div>`;
+  document.getElementById('history-list').innerHTML=sales.length?sales.map(s=>`
+    <div class="med-item">
+      <div class="med-avatar" style="background:var(--grad-purple);cursor:pointer;" onclick="viewInvoice('${s.id}')">🧾</div>
+      <div class="med-info" style="cursor:pointer;" onclick="viewInvoice('${s.id}')">
+        <div class="med-name" style="font-family:monospace;font-size:12px;">${s.id}</div>
+        <div class="med-meta">${new Date(s.date).toLocaleString('en-IN')} · ${s.customer}</div>
+        <div class="med-badges">
+          <span class="badge badge-blue">${(s.items||[]).length} items</span>
+          <span class="badge ${s.payment_mode==='cash'?'badge-green':s.payment_mode==='upi'?'badge-blue':'badge-red'}">${modeIcon[s.payment_mode]||''} ${s.payment_mode||'cash'}</span>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:17px;font-weight:900;">₹${(s.total||0).toFixed(2)}</div>
+        <div style="font-size:11px;font-weight:700;color:#059669;margin-top:3px;">+₹${(s.profit||0).toFixed(2)}</div>
+        <button class="btn btn-danger btn-sm" style="margin-top:8px;" onclick="event.stopPropagation();deleteSale('${s.id}')">🗑 Delete</button>
+      </div>
+    </div>`).join(''):`<div class="empty-state"><div class="empty-icon">🧾</div><p>No sales yet</p></div>`;
+}
+async function deleteSale(id){
+  const s=salesCache.find(x=>x.id===id);
+  if(!s)return;
+  if(!confirm(`Delete invoice ${id}?\n\nNote: Stock will NOT be restored automatically. Only delete if entered by mistake.`))return;
+  setSyncing();
+  if(s.payment_mode==='credit'&&s.credit_customer_id){
+    const cc=creditCustomersCache.find(c=>c.id===s.credit_customer_id);
+    if(cc){
+      await db.from('credit_customers').update({total_credit:Math.max(0,(cc.total_credit||0)-(s.total||0))}).eq('id',s.credit_customer_id);
+      await db.from('credit_transactions').insert({id:'ctx_'+Date.now(),customer_id:s.credit_customer_id,type:'payment',amount:s.total,note:'Sale deleted: '+id,date:new Date().toISOString()});
+    }
+  }
+  const{error}=await db.from('sales').delete().eq('id',id);
+  if(error){setSyncError();toast('Error deleting sale','error');return;}
+  setSynced();toast('Sale deleted ✓');
+  await loadSales();await loadCreditCustomers();
 }
 function viewInvoice(id){
   const s=salesCache.find(x=>x.id===id);if(!s)return;
@@ -1029,28 +1062,49 @@ function renderBcList(){
   document.getElementById('bc-list').innerHTML=meds.length?meds.map(m=>`<div class="med-item"><input type="checkbox" ${bcSel[m.id]?.checked?'checked':''} onchange="bcSel['${m.id}']={...bcSel['${m.id}'],checked:this.checked}" style="width:20px;height:20px;accent-color:var(--p1);flex-shrink:0;cursor:pointer;"/><div class="med-info"><div class="med-name">${m.name}</div><div class="med-meta" style="font-family:monospace;">${m.barcode}</div></div><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;font-weight:700;color:var(--text2);">×</span><input type="number" min="1" max="50" value="${bcSel[m.id]?.copies||2}" onchange="bcSel['${m.id}']={...bcSel['${m.id}'],copies:parseInt(this.value)||1}" style="width:52px;padding:7px;text-align:center;font-weight:800;"/></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">🏷️</div><p>No medicines</p></div>`;
 }
 function generateBarcodes(){
-  const preview=document.getElementById('bp');preview.innerHTML='';let c=0;
+  const preview=document.getElementById('bp');
+  preview.innerHTML='';
+  preview.style.cssText='background:white;padding:6mm;display:flex;flex-direction:column;gap:3mm;width:75mm;';
+  let c=0;
   medsCache.forEach(m=>{
     const sel=bcSel[m.id];if(!sel?.checked)return;
     for(let i=0;i<(sel.copies||2);i++){
       const w=document.createElement('div');
-      w.style.cssText='display:flex;flex-direction:column;align-items:center;padding:6px 8px;border:1px solid #ddd;background:white;max-width:110px;';
-      // Store name
-      const sn=document.createElement('div');sn.style.cssText='font-size:8px;font-weight:bold;color:#333;font-family:sans-serif;text-align:center;margin-bottom:2px;';sn.textContent='Al Zohra Medical';
-      // Barcode SVG
+      w.style.cssText='display:flex;flex-direction:column;align-items:center;padding:2mm 3mm;border:0.8px solid #999;background:white;width:69mm;page-break-inside:avoid;font-family:Arial,sans-serif;';
+
+      // LINE 1 — Medicine Name
+      const nm=document.createElement('div');
+      nm.style.cssText='font-size:9pt;font-weight:900;color:#000;text-align:center;width:100%;word-wrap:break-word;line-height:1.3;margin-bottom:1mm;';
+      nm.textContent=m.name;
+
+      // LINE 2 — Barcode
       const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-      // Medicine name
-      const nm=document.createElement('div');nm.style.cssText='font-size:8px;color:#333;font-family:sans-serif;text-align:center;margin-top:2px;max-width:100px;word-wrap:break-word;font-weight:bold;';nm.textContent=m.name.substring(0,28);
-      // MRP
-      const mrp=document.createElement('div');mrp.style.cssText='font-size:9px;color:#000;font-family:sans-serif;text-align:center;font-weight:bold;';mrp.textContent='MRP ₹'+m.mrp;
-      // Batch & Expiry
-      const be=document.createElement('div');be.style.cssText='font-size:8px;color:#555;font-family:sans-serif;text-align:center;';
-      if(m.batch)be.textContent+='Batch: '+m.batch+' ';
-      if(m.expiry)be.textContent+='Exp: '+m.expiry;
-      w.appendChild(sn);w.appendChild(svg);w.appendChild(nm);w.appendChild(mrp);
-      if(m.batch||m.expiry)w.appendChild(be);
+      svg.style.cssText='width:100%;';
+
+      // LINE 3 — MRP and Batch
+      const line3=document.createElement('div');
+      line3.style.cssText='display:flex;justify-content:space-between;width:100%;margin-top:1mm;font-size:8pt;font-weight:700;color:#000;';
+      const mrpEl=document.createElement('span');
+      mrpEl.textContent='MRP: ₹'+m.mrp;
+      const batchEl=document.createElement('span');
+      batchEl.textContent=m.batch?'Batch: '+m.batch:'';
+      line3.appendChild(mrpEl);
+      line3.appendChild(batchEl);
+
+      // LINE 4 — Expiry
+      const line4=document.createElement('div');
+      line4.style.cssText='width:100%;text-align:center;font-size:8pt;font-weight:600;color:#333;margin-top:0.5mm;';
+      line4.textContent=m.expiry?'Expiry: '+m.expiry:'';
+
+      w.appendChild(nm);
+      w.appendChild(svg);
+      w.appendChild(line3);
+      if(m.expiry)w.appendChild(line4);
       preview.appendChild(w);
-      try{JsBarcode(svg,m.barcode,{format:'CODE128',width:1.4,height:35,displayValue:true,fontSize:8,margin:1});}catch{nm.textContent='Invalid barcode';}
+
+      try{
+        JsBarcode(svg,m.barcode,{format:'CODE128',width:1.6,height:38,displayValue:true,fontSize:8,margin:2,textMargin:1});
+      }catch(e){nm.textContent='Invalid barcode: '+m.barcode;}
       c++;
     }
   });
