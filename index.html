@@ -270,11 +270,15 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
 .report-row:last-child{border-bottom:none;}
 .report-row.total{font-size:16px;font-weight:900;color:var(--p1);}
 
+/* Mobile: sidebar always hidden */
+#sidebar{display:none;}
 @media(min-width:768px){
   #app{flex-direction:row;}
-  #sidebar{display:flex;flex-direction:column;}
+  #sidebar{display:flex!important;flex-direction:column;}
   #mob-header{display:none;}
   #bottom-nav{display:none;}
+  #more-menu{display:none!important;}
+  #more-overlay{display:none!important;}
   #pages{padding-bottom:28px;}
   .page{padding:28px 32px;max-width:900px;}
   .modal-bg{align-items:center;}
@@ -532,9 +536,38 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   <div class="bnav active" onclick="nav('dashboard',this)"><div class="bnav-icon">📊</div><div>Home</div></div>
   <div class="bnav" onclick="nav('stock',this)"><div class="bnav-icon">💊</div><div>Stock</div><div class="bnav-badge" id="low-bnav-badge" style="display:none;"></div></div>
   <div class="bnav-fab-wrap" onclick="nav('sales',null)"><div class="bnav-fab">🛒</div></div>
-  <div class="bnav" onclick="nav('credit',this)"><div class="bnav-icon">👤</div><div>Credit</div></div>
-  <div class="bnav" onclick="nav('report',this)"><div class="bnav-icon">📋</div><div>Report</div></div>
+  <div class="bnav" onclick="nav('history',this)"><div class="bnav-icon">🧾</div><div>History</div></div>
+  <div class="bnav" onclick="toggleMoreMenu()"><div class="bnav-icon">☰</div><div>More</div></div>
 </div>
+
+<!-- MORE MENU -->
+<div id="more-menu" style="display:none;position:fixed;bottom:calc(72px + var(--safe-b));left:0;right:0;background:var(--white);border-top:1px solid var(--border);border-radius:20px 20px 0 0;z-index:99;padding:16px;box-shadow:0 -4px 20px rgba(0,0,0,.1);">
+  <div style="font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">More Options</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+    <div onclick="nav('credit',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">👤</span><span style="font-size:11px;font-weight:800;">Credit</span>
+    </div>
+    <div onclick="nav('payments',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">💰</span><span style="font-size:11px;font-weight:800;">Payments</span>
+    </div>
+    <div onclick="nav('report',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">📋</span><span style="font-size:11px;font-weight:800;">Report</span>
+    </div>
+    <div onclick="nav('purchase',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">📦</span><span style="font-size:11px;font-weight:800;">Purchase</span>
+    </div>
+    <div onclick="nav('distributors',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">🚚</span><span style="font-size:11px;font-weight:800;">Distributors</span>
+    </div>
+    <div onclick="nav('barcodes',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">🏷️</span><span style="font-size:11px;font-weight:800;">Barcodes</span>
+    </div>
+    <div onclick="nav('suppliers',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">🏭</span><span style="font-size:11px;font-weight:800;">Suppliers</span>
+    </div>
+  </div>
+</div>
+<div id="more-overlay" style="display:none;position:fixed;inset:0;z-index:98;" onclick="closeMoreMenu()"></div>
 </div><!-- /app -->
 
 <!-- LOADING -->
@@ -568,6 +601,9 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   <div class="form-row">
     <div class="form-group"><label>Expiry (MM/YYYY)</label><input type="month" id="m-expiry"/></div>
     <div class="form-group"><label>Pack Info</label><input id="m-pack" placeholder="10 tabs/strip"/></div>
+  </div>
+  <div class="form-group"><label>Distributor</label>
+    <select id="m-distributor"><option value="">-- Select Distributor (optional) --</option></select>
   </div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeModal('med-modal')">Cancel</button>
@@ -648,6 +684,11 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   <div class="form-group"><label>Name *</label><input id="cc-name"/></div>
   <div class="form-group"><label>Phone</label><input id="cc-phone" type="tel"/></div>
   <div class="form-group"><label>Address</label><input id="cc-address"/></div>
+  <div class="form-group">
+    <label>Opening Balance (₹)</label>
+    <input type="number" id="cc-opening" placeholder="0.00 — amount they already owe you" inputmode="decimal"/>
+    <div style="font-size:11px;color:var(--text2);margin-top:5px;font-weight:600;">💡 Enter existing amount this customer owes you before using the app</div>
+  </div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeModal('cred-modal')">Cancel</button>
     <button class="btn btn-primary" id="save-cc-btn" onclick="saveCreditCustomer()">Save</button>
@@ -861,7 +902,7 @@ function renderStock(){
       <div class="med-avatar" style="background:${g(i)}">${catEmoji[m.cat]||'💊'}</div>
       <div class="med-info">
         <div class="med-name">${m.name}</div>
-        <div class="med-meta">${m.mfr||'Unknown'} · ${m.pack||m.cat}</div>
+        <div class="med-meta">${m.mfr||'Unknown'} · ${m.pack||m.cat}${m.distributor_name?' · 🚚 '+m.distributor_name:''}</div>
         <div class="med-badges">
           <span class="badge ${low?'badge-red':'badge-green'}">${m.qty} in stock</span>
           <span class="badge badge-purple">₹${m.mrp}</span>
@@ -874,12 +915,15 @@ function renderStock(){
       </div>
     </div>`;}).join(''):`<div class="empty-state"><div class="empty-icon">💊</div><p>No medicines found</p><span>Tap + Add or Import CSV</span></div>`;
 }
-function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';document.getElementById('med-modal').classList.add('open');}
-function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';document.getElementById('med-modal').classList.add('open');}
+function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
+function populateMedDistSelect(){const sel=document.getElementById('m-distributor');sel.innerHTML='<option value="">-- Select Distributor (optional) --</option>'+distributorsCache.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');}
+function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';populateMedDistSelect();document.getElementById('m-distributor').value=m.distributor_id||'';document.getElementById('med-modal').classList.add('open');}
 async function saveMed(){
   const name=document.getElementById('m-name').value.trim();if(!name)return toast('Name required','error');
   const btn=document.getElementById('save-med-btn');btn.disabled=true;setSyncing();
-  const med={id:editMedId||'med_'+Date.now(),name,barcode:document.getElementById('m-barcode').value.trim()||'BC'+Date.now().toString().slice(-8),mfr:document.getElementById('m-mfr').value.trim(),cat:document.getElementById('m-cat').value,mrp:parseFloat(document.getElementById('m-mrp').value)||0,cost:parseFloat(document.getElementById('m-cost').value)||0,qty:parseInt(document.getElementById('m-qty').value)||0,low:parseInt(document.getElementById('m-low').value)||10,batch:document.getElementById('m-batch').value.trim(),expiry:document.getElementById('m-expiry').value||null,pack:document.getElementById('m-pack').value.trim()};
+  const distId=document.getElementById('m-distributor').value||null;
+  const distName=distId?(distributorsCache.find(d=>d.id===distId)||{}).name||'':'';
+  const med={id:editMedId||'med_'+Date.now(),name,barcode:document.getElementById('m-barcode').value.trim()||'BC'+Date.now().toString().slice(-8),mfr:document.getElementById('m-mfr').value.trim(),cat:document.getElementById('m-cat').value,mrp:parseFloat(document.getElementById('m-mrp').value)||0,cost:parseFloat(document.getElementById('m-cost').value)||0,qty:parseInt(document.getElementById('m-qty').value)||0,low:parseInt(document.getElementById('m-low').value)||10,batch:document.getElementById('m-batch').value.trim(),expiry:document.getElementById('m-expiry').value||null,pack:document.getElementById('m-pack').value.trim(),distributor_id:distId,distributor_name:distName};
   const{error}=await db.from('medicines').upsert(med);
   btn.disabled=false;
   if(error){setSyncError();toast('Error: '+error.message,'error');return;}
@@ -1183,8 +1227,23 @@ function renderCredit(){
   const custs=creditCustomersCache.filter(c=>!q||c.name.toLowerCase().includes(q));
   document.getElementById('credit-list').innerHTML=custs.length?custs.map(c=>`<div class="credit-item"><div class="credit-avatar" style="background:${c.total_credit>0?'var(--grad-red)':'var(--grad-green)'};">👤</div><div class="med-info"><div class="med-name">${c.name}</div><div class="med-meta">${c.phone||'No phone'}</div></div><div style="text-align:right;"><div style="font-size:17px;font-weight:900;color:${c.total_credit>0?'var(--o1)':'var(--g1)'};">₹${(c.total_credit||0).toFixed(2)}</div><div style="font-size:11px;color:var(--text2);font-weight:700;">${c.total_credit>0?'owes you':'settled'}</div><button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="openCreditDetail('${c.id}')">Ledger</button></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">👤</div><p>No credit customers</p></div>`;
 }
-function openAddCreditCustomer(){['cc-name','cc-phone','cc-address'].forEach(id=>document.getElementById(id).value='');document.getElementById('cred-modal').classList.add('open');}
-async function saveCreditCustomer(){const name=document.getElementById('cc-name').value.trim();if(!name)return toast('Name required','error');const btn=document.getElementById('save-cc-btn');btn.disabled=true;setSyncing();const{error}=await db.from('credit_customers').insert({id:'cc_'+Date.now(),name,phone:document.getElementById('cc-phone').value.trim(),address:document.getElementById('cc-address').value.trim(),total_credit:0});btn.disabled=false;if(error){setSyncError();toast('Error','error');return;}setSynced();closeModal('cred-modal');toast('Customer added ✓');await loadCreditCustomers();}
+function openAddCreditCustomer(){['cc-name','cc-phone','cc-address','cc-opening'].forEach(id=>document.getElementById(id).value='');document.getElementById('cred-modal').classList.add('open');}
+async function saveCreditCustomer(){
+  const name=document.getElementById('cc-name').value.trim();
+  if(!name)return toast('Name required','error');
+  const opening=parseFloat(document.getElementById('cc-opening').value)||0;
+  const btn=document.getElementById('save-cc-btn');btn.disabled=true;setSyncing();
+  const id='cc_'+Date.now();
+  const{error}=await db.from('credit_customers').insert({id,name,phone:document.getElementById('cc-phone').value.trim(),address:document.getElementById('cc-address').value.trim(),total_credit:opening});
+  if(error){btn.disabled=false;setSyncError();toast('Error','error');return;}
+  // if opening balance, add a transaction record
+  if(opening>0){
+    await db.from('credit_transactions').insert({id:'ctx_'+Date.now(),customer_id:id,type:'sale',amount:opening,note:'Opening balance',date:new Date().toISOString()});
+  }
+  btn.disabled=false;setSynced();closeModal('cred-modal');
+  toast('Customer added ✓'+(opening>0?' · Opening balance ₹'+opening.toFixed(2):''));
+  await loadCreditCustomers();await loadCreditTx();
+}
 async function openCreditDetail(id){
   currentCreditCustomerId=id;
   const c=creditCustomersCache.find(x=>x.id===id);if(!c)return;
@@ -1268,6 +1327,8 @@ function closeScanner(){document.getElementById('scanner-modal').classList.remov
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function fmtN(n){return n>=100000?'₹'+(n/100000).toFixed(1)+'L':n>=1000?(n/1000).toFixed(1)+'k':n.toFixed(0);}
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+function toggleMoreMenu(){const m=document.getElementById('more-menu');const o=document.getElementById('more-overlay');if(m.style.display==='none'){m.style.display='block';o.style.display='block';}else{m.style.display='none';o.style.display='none';}}
+function closeMoreMenu(){document.getElementById('more-menu').style.display='none';document.getElementById('more-overlay').style.display='none';}
 </script>
 </body>
 </html>
