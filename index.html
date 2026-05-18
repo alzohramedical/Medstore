@@ -156,6 +156,22 @@ html,body,#app{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;}
 .med-meta{font-size:11px;color:var(--text2);margin-top:2px;font-weight:600;}
 .med-badges{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;}
 
+/* THREE DOT MENU */
+.dot-menu-wrap{position:relative;}
+.dot-btn{background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:8px;font-size:18px;color:var(--text2);line-height:1;transition:all .15s;}
+.dot-btn:hover{background:var(--bg);color:var(--text);}
+.dot-dropdown{display:none;position:absolute;right:0;top:100%;background:var(--white);border:1.5px solid var(--border);border-radius:var(--r-sm);box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:200;min-width:140px;overflow:hidden;}
+.dot-dropdown.open{display:block;animation:fadeIn .15s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+.dot-item{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;transition:background .1s;white-space:nowrap;}
+.dot-item:hover{background:var(--bg);}
+.dot-item.danger{color:#dc2626;}
+.dot-item.danger:hover{background:rgba(255,107,107,.1);}
+.dot-item.success{color:#059669;}
+.dot-item.success:hover{background:rgba(6,214,160,.1);}
+.dot-item.info{color:var(--b1);}
+.dot-item.info:hover{background:rgba(59,130,246,.1);}
+
 /* BADGES */
 .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:800;}
 .badge-purple{background:rgba(108,99,255,.1);color:var(--p1);}
@@ -342,6 +358,7 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     <div class="snav active" onclick="nav('dashboard',this)"><div class="snav-icon">📊</div>Dashboard</div>
     <div class="snav" onclick="nav('sales',this)"><div class="snav-icon">🛒</div>New Sale</div>
     <div class="snav" onclick="nav('history',this)"><div class="snav-icon">🧾</div>Sale History</div>
+    <div class="snav" onclick="nav('returns',this)"><div class="snav-icon">↩️</div>Returns</div>
     <div class="sidebar-section">Inventory</div>
     <div class="snav" onclick="nav('stock',this)"><div class="snav-icon">💊</div>Stock <span id="low-badge-side" class="nav-badge" style="display:none;"></span></div>
     <div class="snav" onclick="nav('lowstock',this)"><div class="snav-icon">🏥</div>Stock Health</div>
@@ -421,12 +438,27 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   </div>
 </div>
 
+<!-- RETURNS -->
+<div id="page-returns" class="page">
+  <div class="page-header"><h1>Returns ↩️</h1><p>All returned items and refunds</p></div>
+  <div class="search-wrap"><span class="search-ico">🔍</span><input id="ret-search" placeholder="Search returns…" oninput="renderReturns()" autocomplete="off"/></div>
+  <div id="returns-list"></div>
+</div>
+
 <!-- HISTORY -->
 <div id="page-history" class="page">
   <div class="page-header"><h1>History 🧾</h1><p>All completed transactions</p></div>
-  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
     <div class="search-wrap" style="flex:1;min-width:180px;margin:0;"><span class="search-ico">🔍</span><input id="hist-search" placeholder="Search…" oninput="renderHistory()" autocomplete="off"/></div>
     <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">📤 Export</button>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">
+    <button class="tab active" id="hist-tab-today" onclick="setHistTab('today',this)">Today</button>
+    <button class="tab" id="hist-tab-yesterday" onclick="setHistTab('yesterday',this)">Yesterday</button>
+    <button class="tab" id="hist-tab-week" onclick="setHistTab('week',this)">This Week</button>
+    <button class="tab" id="hist-tab-month" onclick="setHistTab('month',this)">This Month</button>
+    <button class="tab" id="hist-tab-all" onclick="setHistTab('all',this)">All</button>
+    <input type="date" id="hist-date-pick" style="padding:7px 12px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);font-family:Nunito,sans-serif;font-size:13px;font-weight:700;cursor:pointer;" onchange="setHistTab('date',null)"/>
   </div>
   <div id="history-list"></div>
 </div>
@@ -595,6 +627,9 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     </div>
     <div onclick="nav('distributors',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
       <span style="font-size:24px;">🚚</span><span style="font-size:11px;font-weight:800;">Distributors</span>
+    </div>
+    <div onclick="nav('returns',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">↩️</span><span style="font-size:11px;font-weight:800;">Returns</span>
     </div>
     <div onclick="nav('barcodes',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
       <span style="font-size:24px;">🏷️</span><span style="font-size:11px;font-weight:800;">Barcodes</span>
@@ -784,6 +819,32 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   </div>
   <button class="btn btn-green btn-full" onclick="recordCreditPayment()">Record Payment ✅</button>
   <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('cred-detail-modal')">Close</button></div>
+</div>
+</div>
+
+<!-- Return Modal -->
+<div class="modal-bg" id="return-modal">
+<div class="modal">
+  <div class="modal-handle"></div>
+  <h2>↩️ Process Return</h2>
+  <input type="hidden" id="ret-sale-id"/>
+  <div id="ret-items-wrap"></div>
+  <div class="form-group" style="margin-top:12px;">
+    <label>Refund Mode</label>
+    <div class="pay-mode-row">
+      <button class="pay-mode-btn active cash" onclick="setRetMode('cash',this)">💵 Cash</button>
+      <button class="pay-mode-btn upi" onclick="setRetMode('upi',this)">📱 UPI</button>
+    </div>
+  </div>
+  <div class="form-group"><label>Reason (optional)</label><input id="ret-reason" placeholder="Damaged, wrong medicine, etc."/></div>
+  <div id="ret-total-wrap" style="background:var(--bg);border-radius:var(--r-sm);padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-weight:800;">Refund Amount:</span>
+    <span id="ret-total" style="font-size:20px;font-weight:900;color:var(--o1);">₹0.00</span>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('return-modal')">Cancel</button>
+    <button class="btn btn-primary" id="save-ret-btn" onclick="saveReturn()" style="background:var(--grad-green);">Process Return ✅</button>
+  </div>
 </div>
 </div>
 
@@ -1137,7 +1198,7 @@ function setSyncUI(color,label,pulse){
 // ── INIT ──
 async function init(){
   try{
-    const[m,s,p,su,dist,cc,ct]=await Promise.all([
+    const[m,s,p,su,dist,cc,ct,ret]=await Promise.all([
       db.from('medicines').select('*').order('name'),
       db.from('sales').select('*').order('date',{ascending:false}),
       db.from('payments').select('*').order('created_at',{ascending:false}),
@@ -1145,10 +1206,12 @@ async function init(){
       db.from('distributors').select('*').order('name'),
       db.from('credit_customers').select('*').order('name'),
       db.from('credit_transactions').select('*').order('date',{ascending:false}),
+      db.from('returns').select('*').order('date',{ascending:false}),
     ]);
     medsCache=m.data||[]; salesCache=s.data||[]; paymentsCache=p.data||[];
     suppliersCache=su.data||[]; distributorsCache=dist.data||[];
     creditCustomersCache=cc.data||[]; creditTxCache=ct.data||[];
+    returnsCache=ret.data||[];
     setSynced();
     document.getElementById('loading').style.display='none';
     // set default report date
@@ -1165,6 +1228,7 @@ async function init(){
       .on('postgres_changes',{event:'*',schema:'public',table:'distributors'},()=>loadDistributors())
       .on('postgres_changes',{event:'*',schema:'public',table:'credit_customers'},()=>loadCreditCustomers())
       .on('postgres_changes',{event:'*',schema:'public',table:'credit_transactions'},()=>loadCreditTx())
+      .on('postgres_changes',{event:'*',schema:'public',table:'returns'},()=>loadReturns())
       .subscribe();
   }catch(e){setSyncError();document.getElementById('loading').style.display='none';toast('Could not connect. Check internet.','error');}
 }
@@ -1182,7 +1246,7 @@ function updateLowStockBadge(){
 }
 
 // ── NAV ──
-const titles={dashboard:'Dashboard',sales:'New Sale',history:'History',stock:'Stock',lowstock:'Stock Health',purchase:'Stock Purchase',barcodes:'Barcodes',payments:'Payments',credit:'Credit',report:'Daily Report',analytics:'Analytics',distributors:'Distributors',suppliers:'Suppliers'};
+const titles={dashboard:'Dashboard',sales:'New Sale',returns:'Returns',history:'History',stock:'Stock',lowstock:'Stock Health',purchase:'Stock Purchase',barcodes:'Barcodes',payments:'Payments',credit:'Credit',report:'Daily Report',analytics:'Analytics',distributors:'Distributors',suppliers:'Suppliers'};
 function nav(page,el){
   try{
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1193,7 +1257,7 @@ function nav(page,el){
     console.log('Navigating to:', page, 'Element:', pageEl, 'Display:', window.getComputedStyle(pageEl).display);
     if(el)el.classList.add('active');
     document.getElementById('mob-page-title').textContent=titles[page]||'';
-    const fns={dashboard:renderDashboard,stock:renderStock,lowstock:renderLowStock,history:renderHistory,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
+    const fns={dashboard:renderDashboard,stock:renderStock,lowstock:renderLowStock,history:renderHistory,returns:renderReturns,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
     fns[page]?.();
   }catch(e){console.error('Nav error:',e);toast('Error loading page: '+e.message,'error');}
 }
@@ -1244,9 +1308,12 @@ function renderStock(){
           ${expS?`<span class="badge badge-yellow">Exp ${m.expiry}</span>`:''}
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        <button class="btn btn-ghost btn-sm" onclick="openEditMed('${m.id}')">Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteMed('${m.id}')">Del</button>
+      <div class="dot-menu-wrap">
+        <button class="dot-btn" onclick="event.stopPropagation();toggleDotMenu('stk-${m.id}')">⋮</button>
+        <div class="dot-dropdown" id="stk-${m.id}">
+          <div class="dot-item" onclick="openEditMed('${m.id}');closeDotMenus()">✏️ Edit</div>
+          <div class="dot-item danger" onclick="deleteMed('${m.id}');closeDotMenus()">🗑 Delete</div>
+        </div>
       </div>
     </div>`;}).join(''):`<div class="empty-state"><div class="empty-icon">💊</div><p>No medicines found</p><span>Tap + Add or Import CSV</span></div>`;
 }
@@ -1472,9 +1539,33 @@ async function completeSale(){
 }
 
 // ── HISTORY ──
+let histTab = 'today';
+function setHistTab(tab, el){
+  histTab = tab;
+  document.querySelectorAll('#page-history .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  if(tab !== 'date') document.getElementById('hist-date-pick').value = '';
+  renderHistory();
+}
+function filterByHistTab(sales){
+  const now = new Date();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+  const dateVal = document.getElementById('hist-date-pick')?.value;
+  if(histTab==='today') return sales.filter(s=>new Date(s.date)>=today);
+  if(histTab==='yesterday') return sales.filter(s=>{const d=new Date(s.date);return d>=yesterday&&d<today;});
+  if(histTab==='week') return sales.filter(s=>new Date(s.date)>=weekAgo);
+  if(histTab==='month') return sales.filter(s=>new Date(s.date)>=monthStart);
+  if(histTab==='date'&&dateVal) return sales.filter(s=>s.date.startsWith(dateVal));
+  return sales; // all
+}
 function renderHistory(){
   const q=(document.getElementById('hist-search')||{}).value?.toLowerCase()||'';
-  let sales=[...salesCache];if(q)sales=sales.filter(s=>s.customer?.toLowerCase().includes(q)||s.id?.toLowerCase().includes(q));
+  let sales=[...salesCache];
+  if(q)sales=sales.filter(s=>s.customer?.toLowerCase().includes(q)||s.id?.toLowerCase().includes(q));
+  sales=filterByHistTab(sales);
   const modeIcon={cash:'💵',upi:'📱',credit:'📒'};
   document.getElementById('history-list').innerHTML=sales.length?sales.map(s=>`
     <div class="med-item">
@@ -1487,13 +1578,22 @@ function renderHistory(){
           <span class="badge ${s.payment_mode==='cash'?'badge-green':s.payment_mode==='upi'?'badge-blue':'badge-red'}">${modeIcon[s.payment_mode]||''} ${s.payment_mode||'cash'}</span>
         </div>
       </div>
-      <div style="text-align:right;flex-shrink:0;">
+      <div style="flex-shrink:0;text-align:right;">
         <div style="font-size:17px;font-weight:900;">₹${(s.total||0).toFixed(2)}</div>
-        <div style="font-size:11px;font-weight:700;color:#059669;margin-top:3px;">+₹${(s.profit||0).toFixed(2)}</div>
-        <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="event.stopPropagation();editSale('${s.id}')">✏️ Edit</button>
-        <button class="btn btn-danger btn-sm" style="margin-top:6px;" onclick="event.stopPropagation();deleteSale('${s.id}')">🗑 Delete</button>
+        <div style="font-size:11px;font-weight:700;color:#059669;margin-top:2px;">+₹${(s.profit||0).toFixed(2)}</div>
+        <div class="dot-menu-wrap" style="margin-top:6px;">
+          <button class="dot-btn" onclick="event.stopPropagation();toggleDotMenu('hist-${s.id}')">⋮</button>
+          <div class="dot-dropdown" id="hist-${s.id}">
+            <div class="dot-item info" onclick="viewInvoice('${s.id}');closeDotMenus()">👁 View</div>
+            <div class="dot-item info" onclick="downloadSalePDF('${s.id}');closeDotMenus()">📄 Download PDF</div>
+            <div class="dot-item info" onclick="sendWhatsApp(salesCache.find(x=>x.id==='${s.id}'),'');closeDotMenus()">📲 WhatsApp</div>
+            <div class="dot-item" onclick="editSale('${s.id}');closeDotMenus()">✏️ Edit</div>
+            <div class="dot-item success" onclick="openReturn('${s.id}');closeDotMenus()">↩️ Return</div>
+            <div class="dot-item danger" onclick="deleteSale('${s.id}');closeDotMenus()">🗑 Delete</div>
+          </div>
+        </div>
       </div>
-    </div>`).join(''):`<div class="empty-state"><div class="empty-icon">🧾</div><p>No sales yet</p></div>`;
+    </div>`).join(''):`<div class="empty-state"><div class="empty-icon">🧾</div><p>No sales for this period</p></div>`;
 }
 let editSalePayMode = 'cash';
 let editSaleItems = [];
@@ -1570,6 +1670,126 @@ async function saveEditedSale(){
   if(error){setSyncError();toast('Error saving','error');return;}
   setSynced();closeModal('edit-sale-modal');toast('Sale updated ✓');
   await loadSales();
+}
+
+// ── RETURNS ──
+let retMode = 'cash';
+let retItems = [];
+let returnsCache = [];
+
+async function loadReturns(){
+  const{data}=await db.from('returns').select('*').order('date',{ascending:false});
+  returnsCache=data||[];
+  renderReturns();
+}
+
+function renderReturns(){
+  const q=(document.getElementById('ret-search')||{}).value?.toLowerCase()||'';
+  let rets=[...returnsCache];
+  if(q)rets=rets.filter(r=>r.customer?.toLowerCase().includes(q)||r.original_invoice?.toLowerCase().includes(q));
+  document.getElementById('returns-list').innerHTML=rets.length?rets.map(r=>`
+    <div class="med-item">
+      <div class="med-avatar" style="background:var(--grad-red);">↩️</div>
+      <div class="med-info">
+        <div class="med-name" style="font-family:monospace;font-size:12px;">RET-${r.id.slice(-8)}</div>
+        <div class="med-meta">${new Date(r.date).toLocaleString('en-IN')} · ${r.customer||'Walk-in'}</div>
+        <div class="med-meta">Original: ${r.original_invoice} · ${r.reason||'No reason'}</div>
+        <div class="med-badges">
+          <span class="badge badge-red">${(r.items||[]).length} items</span>
+          <span class="badge ${r.refund_mode==='cash'?'badge-green':'badge-blue'}">${r.refund_mode||'cash'}</span>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:17px;font-weight:900;color:var(--o1);">-₹${(r.refund_amount||0).toFixed(2)}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:3px;">refunded</div>
+      </div>
+    </div>`).join(''):`<div class="empty-state"><div class="empty-icon">↩️</div><p>No returns yet</p></div>`;
+}
+
+function setRetMode(mode,el){
+  retMode=mode;
+  document.querySelectorAll('#return-modal .pay-mode-btn').forEach(b=>b.classList.remove('active','cash','upi','credit'));
+  el.classList.add('active',mode);
+}
+
+function openReturn(saleId){
+  const s=salesCache.find(x=>x.id===saleId);if(!s)return;
+  retItems=(s.items||[]).map(i=>({...i,retQty:0}));
+  document.getElementById('ret-sale-id').value=saleId;
+  document.getElementById('ret-reason').value='';
+  retMode='cash';
+  document.querySelectorAll('#return-modal .pay-mode-btn').forEach((b,i)=>{b.classList.remove('active','cash','upi');if(i===0)b.classList.add('active','cash');});
+  renderRetItems();
+  document.getElementById('return-modal').classList.add('open');
+}
+
+function renderRetItems(){
+  const wrap=document.getElementById('ret-items-wrap');
+  wrap.innerHTML=`<div style="font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Select Items to Return</div>`+
+  retItems.map((item,i)=>`
+    <div class="cart-item" style="margin-bottom:8px;">
+      <div class="cart-item-name">${item.name}</div>
+      <div class="cart-item-sub">Sold: ${item.qty} × ₹${item.mrp} ${item.disc>0?'('+item.disc+'% off)':''}</div>
+      <div class="qty-row" style="margin-top:8px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text2);">Return qty:</span>
+        <button class="qty-btn" onclick="retQty(${i},-1)">−</button>
+        <span class="qty-num">${item.retQty}</span>
+        <button class="qty-btn" onclick="retQty(${i},1)">+</button>
+        <span style="margin-left:auto;font-weight:900;color:var(--o1);">
+          ${item.retQty>0?'-₹'+(item.retQty*item.mrp*(1-(item.disc||0)/100)).toFixed(2):''}
+        </span>
+      </div>
+    </div>`).join('');
+  const total=retItems.reduce((a,i)=>a+i.retQty*i.mrp*(1-(i.disc||0)/100),0);
+  document.getElementById('ret-total').textContent='₹'+total.toFixed(2);
+}
+
+function retQty(i,d){
+  retItems[i].retQty=Math.max(0,Math.min(retItems[i].retQty+d,retItems[i].qty));
+  renderRetItems();
+}
+
+async function saveReturn(){
+  const saleId=document.getElementById('ret-sale-id').value;
+  const s=salesCache.find(x=>x.id===saleId);if(!s)return;
+  const returnItems=retItems.filter(i=>i.retQty>0);
+  if(!returnItems.length){toast('Select at least 1 item to return','error');return;}
+  const refundAmt=returnItems.reduce((a,i)=>a+i.retQty*i.mrp*(1-(i.disc||0)/100),0);
+  const btn=document.getElementById('save-ret-btn');btn.disabled=true;setSyncing();
+  // Save return record
+  const ret={
+    id:'ret_'+Date.now(),
+    original_invoice:saleId,
+    customer:s.customer,
+    items:returnItems.map(i=>({...i})),
+    refund_amount:refundAmt,
+    refund_mode:retMode,
+    reason:document.getElementById('ret-reason').value.trim(),
+    date:new Date().toISOString()
+  };
+  const{error}=await db.from('returns').insert(ret);
+  if(error){btn.disabled=false;setSyncError();toast('Error saving return','error');return;}
+  // Restore stock
+  for(const ri of returnItems){
+    const m=medsCache.find(x=>x.id===ri.id);
+    if(m)await db.from('medicines').update({qty:m.qty+ri.retQty}).eq('id',ri.id);
+  }
+  // Update original sale profit
+  const retProfit=returnItems.reduce((a,i)=>a+(i.mrp*(1-(i.disc||0)/100)-(i.cost||0))*i.retQty,0);
+  await db.from('sales').update({profit:(s.profit||0)-retProfit,total:(s.total||0)-refundAmt}).eq('id',saleId);
+  btn.disabled=false;setSynced();closeModal('return-modal');
+  toast(`Return processed! Refund: ₹${refundAmt.toFixed(2)} via ${retMode.toUpperCase()}`);
+  await loadMeds();await loadSales();await loadReturns();
+}
+
+async function downloadSalePDF(id){
+  const s=salesCache.find(x=>x.id===id);if(!s)return;
+  toast('Generating PDF…');
+  try{
+    const doc=await generatePDF(s);
+    doc.save('Invoice_'+s.id+'.pdf');
+    toast('PDF downloaded ✓');
+  }catch(e){console.error(e);toast('Error generating PDF','error');}
 }
 
 async function deleteSale(id){
@@ -2043,7 +2263,7 @@ async function delPay(id){if(!confirm('Delete?'))return;setSyncing();await db.fr
 function renderCredit(){
   const q=(document.getElementById('cred-search')||{}).value?.toLowerCase()||'';
   const custs=creditCustomersCache.filter(c=>!q||c.name.toLowerCase().includes(q));
-  document.getElementById('credit-list').innerHTML=custs.length?custs.map(c=>`<div class="credit-item"><div class="credit-avatar" style="background:${c.total_credit>0?'var(--grad-red)':'var(--grad-green)'};">👤</div><div class="med-info"><div class="med-name">${c.name}</div><div class="med-meta">${c.phone||'No phone'}</div></div><div style="text-align:right;"><div style="font-size:17px;font-weight:900;color:${c.total_credit>0?'var(--o1)':'var(--g1)'};">₹${(c.total_credit||0).toFixed(2)}</div><div style="font-size:11px;color:var(--text2);font-weight:700;">${c.total_credit>0?'owes you':'settled'}</div><div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;"><button class="btn btn-ghost btn-sm" onclick="openCreditDetail('${c.id}')">Ledger</button><button class="btn btn-ghost btn-sm" onclick="openEditCreditCustomer('${c.id}')">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteCreditCustomer('${c.id}','${c.name}',${c.total_credit||0})">Del</button></div></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">👤</div><p>No credit customers</p></div>`;
+  document.getElementById('credit-list').innerHTML=custs.length?custs.map(c=>`<div class="credit-item"><div class="credit-avatar" style="background:${c.total_credit>0?'var(--grad-red)':'var(--grad-green)'};">👤</div><div class="med-info"><div class="med-name">${c.name}</div><div class="med-meta">${c.phone||'No phone'}</div></div><div style="text-align:right;"><div style="font-size:17px;font-weight:900;color:${c.total_credit>0?'var(--o1)':'var(--g1)'};">₹${(c.total_credit||0).toFixed(2)}</div><div style="font-size:11px;color:var(--text2);font-weight:700;">${c.total_credit>0?'owes you':'settled'}</div><div class="dot-menu-wrap" style="margin-top:6px;"><button class="dot-btn" onclick="event.stopPropagation();toggleDotMenu('crd-${c.id}')">⋮</button><div class="dot-dropdown" id="crd-${c.id}"><div class="dot-item info" onclick="openCreditDetail('${c.id}');closeDotMenus()">📒 Ledger</div><div class="dot-item" onclick="openEditCreditCustomer('${c.id}');closeDotMenus()">✏️ Edit</div><div class="dot-item danger" onclick="deleteCreditCustomer('${c.id}','${c.name}',${c.total_credit||0});closeDotMenus()">🗑 Delete</div></div></div></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">👤</div><p>No credit customers</p></div>`;
 }
 function openAddCreditCustomer(){['cc-name','cc-phone','cc-address','cc-opening'].forEach(id=>document.getElementById(id).value='');document.getElementById('cred-modal').classList.add('open');}
 async function saveCreditCustomer(){
@@ -2159,7 +2379,7 @@ function renderReport(){
 function renderDistributors(){
   const q=(document.getElementById('dist-search')||{}).value?.toLowerCase()||'';
   const dists=distributorsCache.filter(d=>!q||d.name.toLowerCase().includes(q));
-  document.getElementById('distributor-list').innerHTML=dists.length?dists.map(d=>`<div class="med-item"><div class="med-avatar" style="background:var(--grad-blue);">🚚</div><div class="med-info"><div class="med-name">${d.name}</div><div class="med-meta">${d.contact||''}${d.contact&&d.phone?' · ':''}${d.phone||''}</div>${d.total_credit>0?`<div class="med-badges"><span class="badge badge-red">Owes ₹${d.total_credit.toFixed(2)}</span></div>`:''}</div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">${d.phone?`<a href="tel:${d.phone}" class="btn btn-ghost btn-sm" style="text-decoration:none;">📞</a>`:''}<button class="btn btn-danger btn-sm" onclick="deleteDist('${d.id}')">Del</button></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">🚚</div><p>No distributors</p></div>`;
+  document.getElementById('distributor-list').innerHTML=dists.length?dists.map(d=>`<div class="med-item"><div class="med-avatar" style="background:var(--grad-blue);">🚚</div><div class="med-info"><div class="med-name">${d.name}</div><div class="med-meta">${d.contact||''}${d.contact&&d.phone?' · ':''}${d.phone||''}</div>${d.total_credit>0?`<div class="med-badges"><span class="badge badge-red">Owes ₹${d.total_credit.toFixed(2)}</span></div>`:''}</div><div class="dot-menu-wrap">${d.phone?`<a href="tel:${d.phone}" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-bottom:6px;">📞</a>`:''}<button class="dot-btn" onclick="event.stopPropagation();toggleDotMenu('dst-${d.id}')">⋮</button><div class="dot-dropdown" id="dst-${d.id}"><div class="dot-item danger" onclick="deleteDist('${d.id}');closeDotMenus()">🗑 Delete</div></div></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">🚚</div><p>No distributors</p></div>`;
 }
 function openAddDistributor(){['d-name','d-contact','d-phone','d-email','d-city','d-gst'].forEach(id=>document.getElementById(id).value='');document.getElementById('dist-modal').classList.add('open');}
 async function saveDistributor(){const name=document.getElementById('d-name').value.trim();if(!name)return toast('Name required','error');const btn=document.getElementById('save-dist-btn');btn.disabled=true;setSyncing();const{error}=await db.from('distributors').insert({id:'dist_'+Date.now(),name,contact:document.getElementById('d-contact').value.trim(),phone:document.getElementById('d-phone').value.trim(),email:document.getElementById('d-email').value.trim(),city:document.getElementById('d-city').value.trim(),gst:document.getElementById('d-gst').value.trim(),total_credit:0});btn.disabled=false;if(error){setSyncError();toast('Error','error');return;}setSynced();closeModal('dist-modal');toast('Distributor added ✓');await loadDistributors();}
@@ -2169,7 +2389,7 @@ async function deleteDist(id){if(!confirm('Delete?'))return;setSyncing();await d
 function renderSuppliers(){
   const q=(document.getElementById('sup-search')||{}).value?.toLowerCase()||'';
   const sups=suppliersCache.filter(s=>!q||s.name.toLowerCase().includes(q));
-  document.getElementById('supplier-list').innerHTML=sups.length?sups.map(s=>`<div class="med-item"><div class="med-avatar" style="background:var(--grad-pink);">🏭</div><div class="med-info"><div class="med-name">${s.name}</div><div class="med-meta">${s.contact||''}${s.contact&&s.phone?' · ':''}${s.phone||''}</div></div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">${s.phone?`<a href="tel:${s.phone}" class="btn btn-ghost btn-sm" style="text-decoration:none;">📞</a>`:''}<button class="btn btn-danger btn-sm" onclick="delSup('${s.id}')">Del</button></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">🏭</div><p>No suppliers</p></div>`;
+  document.getElementById('supplier-list').innerHTML=sups.length?sups.map(s=>`<div class="med-item"><div class="med-avatar" style="background:var(--grad-pink);">🏭</div><div class="med-info"><div class="med-name">${s.name}</div><div class="med-meta">${s.contact||''}${s.contact&&s.phone?' · ':''}${s.phone||''}</div></div><div class="dot-menu-wrap">${s.phone?`<a href="tel:${s.phone}" class="btn btn-ghost btn-sm" style="text-decoration:none;margin-bottom:6px;">📞</a>`:''}<button class="dot-btn" onclick="event.stopPropagation();toggleDotMenu('sup-${s.id}')">⋮</button><div class="dot-dropdown" id="sup-${s.id}"><div class="dot-item danger" onclick="delSup('${s.id}');closeDotMenus()">🗑 Delete</div></div></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">🏭</div><p>No suppliers</p></div>`;
 }
 function openAddSupplier(){['s-name','s-contact','s-phone','s-email','s-city','s-gst'].forEach(id=>document.getElementById(id).value='');document.getElementById('sup-modal').classList.add('open');}
 async function saveSupplier(){const n=document.getElementById('s-name').value.trim();if(!n)return toast('Name required','error');const btn=document.getElementById('save-sup-btn');btn.disabled=true;setSyncing();const{error}=await db.from('suppliers').insert({id:'sup_'+Date.now(),name:n,contact:document.getElementById('s-contact').value.trim(),phone:document.getElementById('s-phone').value.trim(),email:document.getElementById('s-email').value.trim(),city:document.getElementById('s-city').value.trim(),gst:document.getElementById('s-gst').value.trim()});btn.disabled=false;if(error){setSyncError();toast('Error','error');return;}setSynced();closeModal('sup-modal');toast('Added ✓');await loadSuppliers();}
@@ -2395,6 +2615,20 @@ function renderCustomerAnalytics(el){
 }
 
 // ── UTILS ──
+function toggleDotMenu(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const wasOpen=el.classList.contains('open');
+  closeDotMenus();
+  if(!wasOpen)el.classList.add('open');
+}
+function closeDotMenus(){
+  document.querySelectorAll('.dot-dropdown.open').forEach(d=>d.classList.remove('open'));
+}
+// Close dot menus when clicking outside
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.dot-menu-wrap'))closeDotMenus();
+});
 function toggleExpiryList(id){
   const el=document.getElementById(id);
   if(!el)return;
