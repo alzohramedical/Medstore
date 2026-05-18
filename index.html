@@ -1237,7 +1237,7 @@ function renderStock(){
       <div class="med-info">
         <div class="med-name">${m.name}</div>
         <div class="med-meta">${m.mfr||'Unknown'} · ${m.pack||m.cat}${m.distributor_name?' · 🚚 '+m.distributor_name:''}</div>
-        ${m.gst>0?`<div class="med-meta" style="color:var(--b1);">GST: ${m.gst}% · Net Cost: ₹${(m.raw_cost||m.cost||0).toFixed(2)} + ₹${(m.gst_amt||0).toFixed(2)} = ₹${(m.cost||0).toFixed(2)}</div>`:''}
+        <div class="med-meta">${m.expiry?'📅 Exp: '+m.expiry+' · ':''}💰 Cost: ₹${(m.cost||0).toFixed(2)}</div>
         <div class="med-badges">
           <span class="badge ${low?'badge-red':'badge-green'}">${m.qty} in stock</span>
           <span class="badge badge-purple">₹${m.mrp}</span>
