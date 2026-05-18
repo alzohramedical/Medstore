@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="MedStore"/>
 <meta name="theme-color" content="#f0f4ff"/>
-<title>Al Zohra Medical</title>
+<title>Al Zohra Medical v3</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -49,10 +49,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .pin-btn.empty{background:transparent;border:none;pointer-events:none;}
 
 /* LAYOUT */
-#app{height:100%;display:flex;}
-#content-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
-#sidebar{display:none;width:260px;background:var(--white);border-right:1px solid var(--border);flex-direction:column;flex-shrink:0;}
-#pages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + var(--safe-b));min-height:0;}
+#app{height:100vh;display:flex;flex-direction:column;}
+#content-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#sidebar{display:none;width:260px;min-width:260px;background:var(--white);border-right:1px solid var(--border);flex-direction:column;flex-shrink:0;overflow-y:auto;}
+#pages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + var(--safe-b));}
 
 /* TOAST */
 #toast{position:fixed;top:calc(20px + var(--safe-t));left:50%;transform:translateX(-50%) translateY(-80px);background:#1a1f36;color:white;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:700;z-index:8000;transition:transform .3s cubic-bezier(.34,1.4,.64,1);white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.2);}
@@ -273,18 +273,19 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
 
 @media(max-width:767px){
   #sidebar{display:none!important;width:0!important;overflow:hidden!important;}
-  #content-wrap{width:100vw!important;}
-  #pages{width:100vw!important;}
-  .page{width:100vw!important;}
+  #app{flex-direction:column!important;}
+  #content-wrap{flex-direction:column!important;width:100%!important;}
+  #pages{width:100%!important;}
 }
 @media(min-width:768px){
-  #app{flex-direction:row;}
+  #app{flex-direction:row!important;}
+  #content-wrap{flex-direction:column!important;}
   #sidebar{display:flex!important;flex-direction:column;}
-  #mob-header{display:none;}
-  #bottom-nav{display:none;}
+  #mob-header{display:none!important;}
+  #bottom-nav{display:none!important;}
   #more-menu{display:none!important;}
   #more-overlay{display:none!important;}
-  #pages{padding-bottom:28px;}
+  #pages{padding-bottom:28px!important;}
   .page{padding:28px 32px;max-width:900px;}
   .modal-bg{align-items:center;}
   .modal{border-radius:24px;}
@@ -904,30 +905,7 @@ window.onerror = function(msg, src, line, col, err){
 };
 
 // ── RESPONSIVE LAYOUT ──
-function fixLayout(){
-  const isDesktop = window.innerWidth >= 768;
-  const sidebar = document.getElementById('sidebar');
-  const app = document.getElementById('app');
-  const wrap = document.getElementById('content-wrap');
-  if(isDesktop){
-    sidebar.style.display='flex';
-    sidebar.style.flexDirection='column';
-    app.style.display='flex';
-    app.style.flexDirection='row';
-    wrap.style.display='flex';
-    wrap.style.flexDirection='column';
-    wrap.style.width='';
-  } else {
-    sidebar.style.display='none';
-    app.style.display='flex';
-    app.style.flexDirection='column';
-    wrap.style.display='flex';
-    wrap.style.flexDirection='column';
-    wrap.style.width='100%';
-  }
-}
-window.addEventListener('resize', fixLayout);
-fixLayout();
+// Handled by CSS media queries only
 
 // ── MEDICINE DATABASE ──
 const MEDICINE_DB = [
