@@ -392,10 +392,19 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
 <!-- DASHBOARD -->
 <div id="page-dashboard" class="page active">
   <div class="page-header"><h1>Good day! 👋</h1><p>Al Zohra Medical & General Store</p></div>
-  <div class="tabs">
-    <div class="tab active" onclick="dashTab(this,'today')">Today</div>
-    <div class="tab" onclick="dashTab(this,'week')">This Week</div>
-    <div class="tab" onclick="dashTab(this,'month')">This Month</div>
+  <div style="display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;flex-wrap:wrap;">
+    <button class="tab active" id="dt-today" onclick="dashTab(this,'today')">Today</button>
+    <button class="tab" id="dt-yesterday" onclick="dashTab(this,'yesterday')">Yesterday</button>
+    <button class="tab" id="dt-week" onclick="dashTab(this,'week')">This Week</button>
+    <button class="tab" id="dt-month" onclick="dashTab(this,'month')">This Month</button>
+    <button class="tab" id="dt-quarter" onclick="dashTab(this,'quarter')">Quarter</button>
+    <button class="tab" id="dt-year" onclick="dashTab(this,'year')">This Year</button>
+    <input type="date" id="dash-date-pick" title="Pick a specific date"
+      style="padding:7px 12px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);font-family:Nunito,sans-serif;font-size:12px;font-weight:700;cursor:pointer;"
+      onchange="dashTab(null,'date')"/>
+    <input type="month" id="dash-month-pick" title="Pick a specific month"
+      style="padding:7px 12px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);font-family:Nunito,sans-serif;font-size:12px;font-weight:700;cursor:pointer;"
+      onchange="dashTab(null,'month-pick')"/>
   </div>
   <div id="dash-hero"></div>
   <div class="stat-grid" id="dash-stats"></div>
@@ -449,7 +458,7 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
 <div id="page-history" class="page">
   <div class="page-header"><h1>History 🧾</h1><p>All completed transactions</p></div>
   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-    <div class="search-wrap" style="flex:1;min-width:180px;margin:0;"><span class="search-ico">🔍</span><input id="hist-search" placeholder="Search…" oninput="renderHistory()" autocomplete="off"/></div>
+    <div class="search-wrap" style="flex:1;min-width:180px;margin:0;"><span class="search-ico">🔍</span><input id="hist-search" placeholder="Search by invoice, customer, medicine…" oninput="renderHistory()" autocomplete="off"/></div>
     <button class="btn btn-ghost btn-sm" onclick="exportSalesExcel()">📤 Export</button>
   </div>
   <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">
@@ -1263,17 +1272,34 @@ function nav(page,el){
 }
 
 // ── DASHBOARD ──
-function dashTab(el,t){document.querySelectorAll('#page-dashboard .tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');dashTab_=t;renderDashboard();}
+function dashTab(el,t){
+  document.querySelectorAll('#page-dashboard .tab').forEach(x=>x.classList.remove('active'));
+  if(el) el.classList.add('active');
+  dashTab_=t;
+  if(t!=='date') document.getElementById('dash-date-pick').value='';
+  if(t!=='month-pick') document.getElementById('dash-month-pick').value='';
+  renderDashboard();
+}
 function renderDashboard(){
   const now=new Date();
-  const cut={today:()=>{const d=new Date();d.setHours(0,0,0,0);return d;},week:()=>{const d=new Date();d.setDate(d.getDate()-7);return d;},month:()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;}};
-  const fs=salesCache.filter(s=>new Date(s.date)>=cut[dashTab_]());
+  const now2=new Date();
+  let fs;
+  if(dashTab_==='today'){const d=new Date();d.setHours(0,0,0,0);fs=salesCache.filter(s=>new Date(s.date)>=d);}
+  else if(dashTab_==='yesterday'){const d=new Date();d.setHours(0,0,0,0);const y=new Date(d);y.setDate(y.getDate()-1);fs=salesCache.filter(s=>{const sd=new Date(s.date);return sd>=y&&sd<d;});}
+  else if(dashTab_==='week'){const d=new Date();d.setDate(d.getDate()-7);fs=salesCache.filter(s=>new Date(s.date)>=d);}
+  else if(dashTab_==='month'){const d=new Date();d.setDate(1);d.setHours(0,0,0,0);fs=salesCache.filter(s=>new Date(s.date)>=d);}
+  else if(dashTab_==='quarter'){const d=new Date();d.setMonth(Math.floor(d.getMonth()/3)*3);d.setDate(1);d.setHours(0,0,0,0);fs=salesCache.filter(s=>new Date(s.date)>=d);}
+  else if(dashTab_==='year'){const d=new Date();d.setMonth(0);d.setDate(1);d.setHours(0,0,0,0);fs=salesCache.filter(s=>new Date(s.date)>=d);}
+  else if(dashTab_==='date'){const dv=document.getElementById('dash-date-pick')?.value;fs=dv?salesCache.filter(s=>s.date.startsWith(dv)):salesCache;}
+  else if(dashTab_==='month-pick'){const mv=document.getElementById('dash-month-pick')?.value;fs=mv?salesCache.filter(s=>s.date.startsWith(mv)):salesCache;}
+  else{fs=[...salesCache];}
   const rev=fs.reduce((a,s)=>a+(s.total||0),0),prof=fs.reduce((a,s)=>a+(s.profit||0),0);
   const cashSales=fs.filter(s=>s.payment_mode==='cash').reduce((a,s)=>a+(s.total||0),0);
   const upiSales=fs.filter(s=>s.payment_mode==='upi').reduce((a,s)=>a+(s.total||0),0);
   const creditSales=fs.filter(s=>s.payment_mode==='credit').reduce((a,s)=>a+(s.total||0),0);
   const totalCredit=creditCustomersCache.reduce((a,c)=>a+(c.total_credit||0),0);
-  document.getElementById('dash-hero').innerHTML=`<div class="hero-banner"><p style="color:rgba(255,255,255,.7);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">${{today:'Today',week:'This Week',month:'This Month'}[dashTab_]} Revenue</p><div class="hero-amount">₹${fmtN(rev)}</div><div class="hero-sub">${fs.length} transactions · ₹${fmtN(prof)} profit · ${rev?((prof/rev)*100).toFixed(1):0}% margin</div></div>`;
+  const dashLabels={today:'Today',yesterday:'Yesterday',week:'This Week',month:'This Month',quarter:'This Quarter',year:'This Year',date:'Selected Date','month-pick':'Selected Month'};
+  document.getElementById('dash-hero').innerHTML=`<div class="hero-banner"><p style="color:rgba(255,255,255,.7);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">${dashLabels[dashTab_]||'Period'} Revenue</p><div class="hero-amount">₹${fmtN(rev)}</div><div class="hero-sub">${fs.length} transactions · ₹${fmtN(prof)} profit · ${rev?((prof/rev)*100).toFixed(1):0}% margin</div></div>`;
   document.getElementById('dash-stats').innerHTML=`
     <div class="stat-card"><div class="stat-icon green">💵</div><div class="stat-label">Cash</div><div class="stat-value green">₹${fmtN(cashSales)}</div></div>
     <div class="stat-card"><div class="stat-icon blue">📱</div><div class="stat-label">UPI</div><div class="stat-value blue">₹${fmtN(upiSales)}</div></div>
@@ -1564,7 +1590,12 @@ function filterByHistTab(sales){
 function renderHistory(){
   const q=(document.getElementById('hist-search')||{}).value?.toLowerCase()||'';
   let sales=[...salesCache];
-  if(q)sales=sales.filter(s=>s.customer?.toLowerCase().includes(q)||s.id?.toLowerCase().includes(q));
+  if(q)sales=sales.filter(s=>
+    s.customer?.toLowerCase().includes(q) ||
+    s.id?.toLowerCase().includes(q) ||
+    s.credit_customer_name?.toLowerCase().includes(q) ||
+    (s.items||[]).some(i=>i.name?.toLowerCase().includes(q))
+  );
   sales=filterByHistTab(sales);
   const modeIcon={cash:'💵',upi:'📱',credit:'📒'};
   document.getElementById('history-list').innerHTML=sales.length?sales.map(s=>`
@@ -2124,9 +2155,47 @@ async function downloadPDF(sale){
 
 // ── EXPORT EXCEL ──
 function exportSalesExcel(){
-  const rows=salesCache.map(s=>({Invoice:s.id,Date:new Date(s.date).toLocaleString('en-IN'),Customer:s.customer,Items:(s.items||[]).length,Total:s.total,Profit:s.profit,Payment:s.payment_mode}));
-  const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Sales');XLSX.writeFile(wb,'AlZohra_Sales_'+new Date().toISOString().split('T')[0]+'.xlsx');
-  toast('Exported ✓');
+  // Filter by current history tab
+  let sales=[...salesCache];
+  const q=(document.getElementById('hist-search')||{}).value?.toLowerCase()||'';
+  if(q)sales=sales.filter(s=>s.customer?.toLowerCase().includes(q)||s.id?.toLowerCase().includes(q)||(s.items||[]).some(i=>i.name?.toLowerCase().includes(q)));
+  sales=filterByHistTab(sales);
+  const rows=sales.map(s=>({
+    'Invoice No':s.id,
+    'Date':new Date(s.date).toLocaleString('en-IN'),
+    'Customer':s.customer||'Walk-in',
+    'Items':(s.items||[]).length,
+    'Payment Mode':(s.payment_mode||'cash').toUpperCase(),
+    'Total (₹)':s.total||0,
+    'Discount (₹)':((s.items||[]).reduce((a,i)=>a+i.qty*i.mrp*((i.disc||0)/100),0)).toFixed(2),
+    'Profit (₹)':s.profit||0,
+    'Margin (%)':s.total>0?(((s.profit||0)/(s.total||1))*100).toFixed(1):0
+  }));
+  // Add totals row
+  const totalRevenue=sales.reduce((a,s)=>a+(s.total||0),0);
+  const totalProfit=sales.reduce((a,s)=>a+(s.profit||0),0);
+  rows.push({});
+  rows.push({
+    'Invoice No':'TOTAL',
+    'Date':'',
+    'Customer':`${sales.length} transactions`,
+    'Items':'',
+    'Payment Mode':'',
+    'Total (₹)':totalRevenue,
+    'Discount (₹)':'',
+    'Profit (₹)':totalProfit,
+    'Margin (%)':totalRevenue>0?((totalProfit/totalRevenue)*100).toFixed(1):0
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  // Bold the totals row
+  const totalRowIdx=rows.length;
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  // Set column widths
+  ws['!cols']=[{wch:18},{wch:22},{wch:20},{wch:8},{wch:14},{wch:12},{wch:14},{wch:12},{wch:12}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Sales');
+  XLSX.writeFile(wb,'AlZohra_Sales_'+new Date().toISOString().split('T')[0]+'.xlsx');
+  toast('Exported '+sales.length+' records ✓');
 }
 function exportReportExcel(){
   const date=document.getElementById('report-date').value;
