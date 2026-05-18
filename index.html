@@ -49,10 +49,10 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 .pin-btn.empty{background:transparent;border:none;pointer-events:none;}
 
 /* LAYOUT */
-#app{height:100%;display:flex;flex-direction:column;}
-#content-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#app{height:100%;display:flex;}
+#content-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
 #sidebar{display:none;width:260px;background:var(--white);border-right:1px solid var(--border);flex-direction:column;flex-shrink:0;}
-#pages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + var(--safe-b));}
+#pages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + var(--safe-b));min-height:0;}
 
 /* TOAST */
 #toast{position:fixed;top:calc(20px + var(--safe-t));left:50%;transform:translateX(-50%) translateY(-80px);background:#1a1f36;color:white;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:700;z-index:8000;transition:transform .3s cubic-bezier(.34,1.4,.64,1);white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.2);}
@@ -1234,6 +1234,8 @@ function renderDashboard(){
 
 // ── STOCK ──
 function renderStock(){
+  const stockEl=document.getElementById('stock-list');
+  if(!stockEl)return;
   const q=(document.getElementById('stock-search')||{}).value?.toLowerCase()||'';
   const meds=medsCache.filter(m=>!q||m.name.toLowerCase().includes(q)||(m.barcode||'').includes(q));
   const now=new Date();
