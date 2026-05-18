@@ -329,8 +329,8 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
 </div>
 
 <!-- MAIN APP -->
-<div id="app">
-<div id="sidebar">
+<div id="app" style="flex-direction:column;">
+<div id="sidebar" style="display:none;">
   <div class="sidebar-logo">
     <div class="sidebar-logo-icon">💊</div>
     <div class="sidebar-logo-text">Al Zohra<br><span>Medical</span></div>
@@ -355,7 +355,7 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   </div>
 </div>
 
-<div id="content-wrap">
+<div id="content-wrap" style="width:100%;flex-direction:column;">
 <div id="mob-header">
   <div class="logo-mark">
     <div class="logo-icon">💊</div>
@@ -777,6 +777,27 @@ let purMode_='cash';
 const catEmoji={Tablets:'💊',Capsules:'💉',Syrup:'🧴',Injection:'💉',Drops:'💧',Ointment:'🧪',Powder:'🫙',OTC:'🏪',Other:'📦'};
 const grads=['var(--grad-purple)','var(--grad-green)','var(--grad-blue)','var(--grad-pink)','var(--grad-red)','var(--grad-yellow)'];
 const g=i=>grads[i%grads.length];
+
+// ── RESPONSIVE LAYOUT ──
+function fixLayout(){
+  const isDesktop = window.innerWidth >= 768;
+  const sidebar = document.getElementById('sidebar');
+  const app = document.getElementById('app');
+  const wrap = document.getElementById('content-wrap');
+  if(isDesktop){
+    sidebar.style.display='flex';
+    sidebar.style.flexDirection='column';
+    app.style.flexDirection='row';
+    wrap.style.flexDirection='row';
+  } else {
+    sidebar.style.display='none';
+    app.style.flexDirection='column';
+    wrap.style.flexDirection='column';
+    wrap.style.width='100%';
+  }
+}
+window.addEventListener('resize', fixLayout);
+fixLayout();
 
 // ── PIN ──
 let pinEntry='';
