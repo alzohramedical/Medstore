@@ -270,8 +270,12 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
 .report-row:last-child{border-bottom:none;}
 .report-row.total{font-size:16px;font-weight:900;color:var(--p1);}
 
-/* Mobile: sidebar always hidden */
-#sidebar{display:none;}
+@media(max-width:767px){
+  #sidebar{display:none!important;width:0!important;overflow:hidden!important;}
+  #content-wrap{width:100vw!important;}
+  #pages{width:100vw!important;}
+  .page{width:100vw!important;}
+}
 @media(min-width:768px){
   #app{flex-direction:row;}
   #sidebar{display:flex!important;flex-direction:column;}
