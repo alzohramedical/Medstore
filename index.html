@@ -392,19 +392,25 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
 <!-- DASHBOARD -->
 <div id="page-dashboard" class="page active">
   <div class="page-header"><h1>Good day! 👋</h1><p>Al Zohra Medical & General Store</p></div>
-  <div style="display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;flex-wrap:wrap;">
+  <div style="display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;align-items:center;">
     <button class="tab active" id="dt-today" onclick="dashTab(this,'today')">Today</button>
     <button class="tab" id="dt-yesterday" onclick="dashTab(this,'yesterday')">Yesterday</button>
-    <button class="tab" id="dt-week" onclick="dashTab(this,'week')">This Week</button>
-    <button class="tab" id="dt-month" onclick="dashTab(this,'month')">This Month</button>
+    <button class="tab" id="dt-week" onclick="dashTab(this,'week')">Week</button>
+    <button class="tab" id="dt-month" onclick="dashTab(this,'month')">Month</button>
     <button class="tab" id="dt-quarter" onclick="dashTab(this,'quarter')">Quarter</button>
-    <button class="tab" id="dt-year" onclick="dashTab(this,'year')">This Year</button>
-    <input type="date" id="dash-date-pick" title="Pick a specific date"
-      style="padding:7px 12px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);font-family:Nunito,sans-serif;font-size:12px;font-weight:700;cursor:pointer;"
-      onchange="dashTab(null,'date')"/>
-    <input type="month" id="dash-month-pick" title="Pick a specific month"
-      style="padding:7px 12px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);font-family:Nunito,sans-serif;font-size:12px;font-weight:700;cursor:pointer;"
-      onchange="dashTab(null,'month-pick')"/>
+    <button class="tab" id="dt-year" onclick="dashTab(this,'year')">Year</button>
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+      <input type="date" id="dash-date-pick" title="Pick date"
+        style="width:36px;height:34px;padding:0 4px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);cursor:pointer;opacity:0;position:absolute;"
+        onchange="dashTab(null,'date')"/>
+      <button class="tab" style="position:relative;" onclick="document.getElementById('dash-date-pick').showPicker?.()">📅</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+      <input type="month" id="dash-month-pick" title="Pick month"
+        style="width:36px;height:34px;padding:0 4px;border-radius:30px;border:1.5px solid var(--border);background:var(--white);cursor:pointer;opacity:0;position:absolute;"
+        onchange="dashTab(null,'month-pick')"/>
+      <button class="tab" style="position:relative;" onclick="document.getElementById('dash-month-pick').showPicker?.()">🗓</button>
+    </div>
   </div>
   <div id="dash-hero"></div>
   <div class="stat-grid" id="dash-stats"></div>
