@@ -1225,7 +1225,7 @@ async function delPay(id){if(!confirm('Delete?'))return;setSyncing();await db.fr
 function renderCredit(){
   const q=(document.getElementById('cred-search')||{}).value?.toLowerCase()||'';
   const custs=creditCustomersCache.filter(c=>!q||c.name.toLowerCase().includes(q));
-  document.getElementById('credit-list').innerHTML=custs.length?custs.map(c=>`<div class="credit-item"><div class="credit-avatar" style="background:${c.total_credit>0?'var(--grad-red)':'var(--grad-green)'};">👤</div><div class="med-info"><div class="med-name">${c.name}</div><div class="med-meta">${c.phone||'No phone'}</div></div><div style="text-align:right;"><div style="font-size:17px;font-weight:900;color:${c.total_credit>0?'var(--o1)':'var(--g1)'};">₹${(c.total_credit||0).toFixed(2)}</div><div style="font-size:11px;color:var(--text2);font-weight:700;">${c.total_credit>0?'owes you':'settled'}</div><button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="openCreditDetail('${c.id}')">Ledger</button></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">👤</div><p>No credit customers</p></div>`;
+  document.getElementById('credit-list').innerHTML=custs.length?custs.map(c=>`<div class="credit-item"><div class="credit-avatar" style="background:${c.total_credit>0?'var(--grad-red)':'var(--grad-green)'};">👤</div><div class="med-info"><div class="med-name">${c.name}</div><div class="med-meta">${c.phone||'No phone'}</div></div><div style="text-align:right;"><div style="font-size:17px;font-weight:900;color:${c.total_credit>0?'var(--o1)':'var(--g1)'};">₹${(c.total_credit||0).toFixed(2)}</div><div style="font-size:11px;color:var(--text2);font-weight:700;">${c.total_credit>0?'owes you':'settled'}</div><div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;"><button class="btn btn-ghost btn-sm" onclick="openCreditDetail('${c.id}')">Ledger</button><button class="btn btn-danger btn-sm" onclick="deleteCreditCustomer('${c.id}','${c.name}',${c.total_credit||0})">Del</button></div></div></div>`).join(''):`<div class="empty-state"><div class="empty-icon">👤</div><p>No credit customers</p></div>`;
 }
 function openAddCreditCustomer(){['cc-name','cc-phone','cc-address','cc-opening'].forEach(id=>document.getElementById(id).value='');document.getElementById('cred-modal').classList.add('open');}
 async function saveCreditCustomer(){
@@ -1242,6 +1242,27 @@ async function saveCreditCustomer(){
   }
   btn.disabled=false;setSynced();closeModal('cred-modal');
   toast('Customer added ✓'+(opening>0?' · Opening balance ₹'+opening.toFixed(2):''));
+  await loadCreditCustomers();await loadCreditTx();
+}
+async function deleteCreditCustomer(id, name, balance){
+  if(balance>0){
+    if(!confirm(`⚠️ ${name} still owes you ₹${balance.toFixed(2)}.
+
+Are you sure you want to delete this customer and clear their balance?
+
+This cannot be undone.`))return;
+  } else {
+    if(!confirm(`Delete customer "${name}"?
+
+All their transaction history will also be deleted.`))return;
+  }
+  setSyncing();
+  // delete all transactions for this customer
+  await db.from('credit_transactions').delete().eq('customer_id',id);
+  // delete the customer
+  const{error}=await db.from('credit_customers').delete().eq('id',id);
+  if(error){setSyncError();toast('Error deleting customer','error');return;}
+  setSynced();toast('Customer deleted ✓');
   await loadCreditCustomers();await loadCreditTx();
 }
 async function openCreditDetail(id){
