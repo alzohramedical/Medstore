@@ -892,6 +892,17 @@ const catEmoji={Tablets:'💊',Capsules:'💉',Syrup:'🧴',Injection:'💉',Dro
 const grads=['var(--grad-purple)','var(--grad-green)','var(--grad-blue)','var(--grad-pink)','var(--grad-red)','var(--grad-yellow)'];
 const g=i=>grads[i%grads.length];
 
+// ── GLOBAL ERROR HANDLER ──
+window.onerror = function(msg, src, line, col, err){
+  console.error('JS Error:', msg, 'Line:', line, err);
+  document.getElementById('toast') && (()=>{
+    const t=document.getElementById('toast');
+    t.textContent='JS Error: '+msg;
+    t.className='show error';
+    setTimeout(()=>t.className='',4000);
+  })();
+};
+
 // ── RESPONSIVE LAYOUT ──
 function fixLayout(){
   const isDesktop = window.innerWidth >= 768;
@@ -1200,6 +1211,7 @@ function nav(page,el){
     const pageEl=document.getElementById('page-'+page);
     if(!pageEl){console.error('Page not found:',page);return;}
     pageEl.classList.add('active');
+    console.log('Navigating to:', page, 'Element:', pageEl, 'Display:', window.getComputedStyle(pageEl).display);
     if(el)el.classList.add('active');
     document.getElementById('mob-page-title').textContent=titles[page]||'';
     const fns={dashboard:renderDashboard,stock:renderStock,lowstock:renderLowStock,history:renderHistory,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
