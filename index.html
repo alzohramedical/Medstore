@@ -630,8 +630,8 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     <div class="form-group"><label>Category</label><select id="m-cat"><option>Tablets</option><option>Capsules</option><option>Syrup</option><option>Injection</option><option>Drops</option><option>Ointment</option><option>Powder</option><option>OTC</option><option>Other</option></select></div>
   </div>
   <div class="form-row">
-    <div class="form-group"><label>MRP (₹) *</label><input type="number" id="m-mrp" placeholder="0.00" inputmode="decimal"/></div>
-    <div class="form-group"><label>Cost (₹) *</label><input type="number" id="m-cost" placeholder="0.00" inputmode="decimal"/></div>
+    <div class="form-group"><label>MRP (₹) *</label><input type="number" id="m-mrp" placeholder="0.00" inputmode="decimal" oninput="calcGstAmt()"/></div>
+    <div class="form-group"><label>Cost (₹) *</label><input type="number" id="m-cost" placeholder="0.00" inputmode="decimal" oninput="calcGstAmt()"/></div>
   </div>
   <div class="form-row">
     <div class="form-group"><label>Stock Qty</label><input type="number" id="m-qty" placeholder="0" inputmode="numeric"/></div>
@@ -644,6 +644,21 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   <div class="form-row">
     <div class="form-group"><label>Expiry (MM/YYYY)</label><input type="month" id="m-expiry"/></div>
     <div class="form-group"><label>Pack Info</label><input id="m-pack" placeholder="10 tabs/strip"/></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>GST Rate</label>
+      <select id="m-gst" onchange="calcGstAmt()">
+        <option value="0">0% — Generic medicines</option>
+        <option value="5">5% — Branded medicines</option>
+        <option value="12">12% — Medical devices</option>
+        <option value="18">18% — Supplements/Cosmetics</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>GST Amount (auto)</label>
+      <input type="text" id="m-gst-amt" readonly placeholder="Auto calculated" style="background:var(--bg);color:var(--text2);cursor:not-allowed;"/>
+    </div>
   </div>
   <div class="form-group"><label>Distributor</label>
     <select id="m-distributor"><option value="">-- Select Distributor (optional) --</option></select>
@@ -770,6 +785,29 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
 </div>
 </div>
 
+<!-- Edit Sale Modal -->
+<div class="modal-bg" id="edit-sale-modal">
+<div class="modal">
+  <div class="modal-handle"></div>
+  <h2>Edit Sale</h2>
+  <input type="hidden" id="edit-sale-id"/>
+  <div class="form-group"><label>Customer Name</label><input id="edit-sale-customer" placeholder="Walk-in customer"/></div>
+  <div class="form-group"><label>Payment Mode</label>
+    <div class="pay-mode-row">
+      <button class="pay-mode-btn active cash" id="edit-pm-cash" onclick="setEditPayMode('cash',this)">💵 Cash</button>
+      <button class="pay-mode-btn upi" id="edit-pm-upi" onclick="setEditPayMode('upi',this)">📱 UPI</button>
+      <button class="pay-mode-btn credit" id="edit-pm-credit" onclick="setEditPayMode('credit',this)">📒 Credit</button>
+    </div>
+  </div>
+  <div id="edit-sale-items-wrap"></div>
+  <div id="edit-sale-total" style="margin-top:8px;"></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('edit-sale-modal')">Cancel</button>
+    <button class="btn btn-primary" id="save-edit-sale-btn" onclick="saveEditedSale()">Save Changes</button>
+  </div>
+</div>
+</div>
+
 <!-- Invoice -->
 <div class="modal-bg" id="invoice-modal">
 <div class="modal">
@@ -790,9 +828,27 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   <div class="modal-handle"></div>
   <h2>Edit Item</h2>
   <input type="hidden" id="disc-idx"/>
-  <div class="form-row">
-    <div class="form-group"><label>Quantity</label><input type="number" id="disc-qty" inputmode="numeric" min="1"/></div>
-    <div class="form-group"><label>Discount %</label><input type="number" id="disc-val" inputmode="decimal" min="0" max="100"/></div>
+  <div class="form-group"><label>Quantity</label><input type="number" id="disc-qty" inputmode="numeric" min="1" onchange="recalcDiscPreview()"/></div>
+  <div style="background:var(--bg);border-radius:var(--r-sm);padding:12px;margin-bottom:14px;">
+    <div style="font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Discount</div>
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Discount %</label>
+        <input type="number" id="disc-val" inputmode="decimal" min="0" max="100" placeholder="0" oninput="discPctChanged()"/>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Discount ₹ (per unit)</label>
+        <input type="number" id="disc-amt" inputmode="decimal" min="0" placeholder="0.00" oninput="discAmtChanged()"/>
+      </div>
+    </div>
+    <div style="margin-top:10px;background:var(--white);border-radius:var(--r-xs);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;font-weight:700;color:var(--text2);">Final Price (per unit)</span>
+      <span id="disc-final-price" style="font-size:16px;font-weight:900;color:var(--p1);">₹0.00</span>
+    </div>
+    <div style="margin-top:6px;background:var(--white);border-radius:var(--r-xs);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;font-weight:700;color:var(--text2);">Line Total</span>
+      <span id="disc-line-total" style="font-size:16px;font-weight:900;color:var(--g1);">₹0.00</span>
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeModal('disc-modal')">Cancel</button>
@@ -1179,6 +1235,7 @@ function renderStock(){
       <div class="med-info">
         <div class="med-name">${m.name}</div>
         <div class="med-meta">${m.mfr||'Unknown'} · ${m.pack||m.cat}${m.distributor_name?' · 🚚 '+m.distributor_name:''}</div>
+        ${m.gst>0?`<div class="med-meta" style="color:var(--b1);">GST: ${m.gst}% · Net Cost: ₹${(m.raw_cost||m.cost||0).toFixed(2)} + ₹${(m.gst_amt||0).toFixed(2)} = ₹${(m.cost||0).toFixed(2)}</div>`:''}
         <div class="med-badges">
           <span class="badge ${low?'badge-red':'badge-green'}">${m.qty} in stock</span>
           <span class="badge badge-purple">₹${m.mrp}</span>
@@ -1191,7 +1248,22 @@ function renderStock(){
       </div>
     </div>`;}).join(''):`<div class="empty-state"><div class="empty-icon">💊</div><p>No medicines found</p><span>Tap + Add or Import CSV</span></div>`;
 }
-function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
+function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';document.getElementById('m-gst').value='0';document.getElementById('m-gst-amt').value='';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
+function calcGstAmt(){
+  const cost=parseFloat(document.getElementById('m-cost').value)||0;
+  const mrp=parseFloat(document.getElementById('m-mrp').value)||0;
+  const gst=parseFloat(document.getElementById('m-gst').value)||0;
+  if(cost>0&&gst>0){
+    const gstAmt=(cost*gst/100);
+    const effectiveCost=cost+gstAmt;
+    const profit=mrp-effectiveCost;
+    document.getElementById('m-gst-amt').value=`GST: ₹${gstAmt.toFixed(2)} | Net Cost: ₹${effectiveCost.toFixed(2)} | Profit: ₹${profit.toFixed(2)}`;
+  } else if(cost>0&&mrp>0){
+    document.getElementById('m-gst-amt').value=`Profit: ₹${(mrp-cost).toFixed(2)}`;
+  } else {
+    document.getElementById('m-gst-amt').value='';
+  }
+}
 function showMedSuggestions(val){
   const box = document.getElementById('med-suggestions');
   const suggestions = getMedicineSuggestions(val);
@@ -1227,17 +1299,22 @@ document.addEventListener('click', e=>{
 });
 
 function populateMedDistSelect(){const sel=document.getElementById('m-distributor');sel.innerHTML='<option value="">-- Select Distributor (optional) --</option>'+distributorsCache.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');}
-function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';populateMedDistSelect();document.getElementById('m-distributor').value=m.distributor_id||'';document.getElementById('med-modal').classList.add('open');}
+function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';document.getElementById('m-gst').value=m.gst||'0';populateMedDistSelect();document.getElementById('m-distributor').value=m.distributor_id||'';calcGstAmt();document.getElementById('med-modal').classList.add('open');}
 async function saveMed(){
   const name=document.getElementById('m-name').value.trim();if(!name)return toast('Name required','error');
   const btn=document.getElementById('save-med-btn');btn.disabled=true;setSyncing();
   const distId=document.getElementById('m-distributor').value||null;
   const distName=distId?(distributorsCache.find(d=>d.id===distId)||{}).name||'':'';
-  const med={id:editMedId||'med_'+Date.now(),name,barcode:document.getElementById('m-barcode').value.trim()||'BC'+Date.now().toString().slice(-8),mfr:document.getElementById('m-mfr').value.trim(),cat:document.getElementById('m-cat').value,mrp:parseFloat(document.getElementById('m-mrp').value)||0,cost:parseFloat(document.getElementById('m-cost').value)||0,qty:parseInt(document.getElementById('m-qty').value)||0,low:parseInt(document.getElementById('m-low').value)||10,batch:document.getElementById('m-batch').value.trim(),expiry:document.getElementById('m-expiry').value||null,pack:document.getElementById('m-pack').value.trim(),distributor_id:distId,distributor_name:distName};
+  const rawCost=parseFloat(document.getElementById('m-cost').value)||0;
+  const gstRate=parseFloat(document.getElementById('m-gst').value)||0;
+  const gstAmt=rawCost*gstRate/100;
+  const effectiveCost=rawCost+gstAmt; // actual cost including GST
+  const med={id:editMedId||'med_'+Date.now(),name,barcode:document.getElementById('m-barcode').value.trim()||'BC'+Date.now().toString().slice(-8),mfr:document.getElementById('m-mfr').value.trim(),cat:document.getElementById('m-cat').value,mrp:parseFloat(document.getElementById('m-mrp').value)||0,cost:effectiveCost,raw_cost:rawCost,gst:gstRate,gst_amt:gstAmt,qty:parseInt(document.getElementById('m-qty').value)||0,low:parseInt(document.getElementById('m-low').value)||10,batch:document.getElementById('m-batch').value.trim(),expiry:document.getElementById('m-expiry').value||null,pack:document.getElementById('m-pack').value.trim(),distributor_id:distId,distributor_name:distName};
   const{error}=await db.from('medicines').upsert(med);
   btn.disabled=false;
   if(error){setSyncError();toast('Error: '+error.message,'error');return;}
-  setSynced();closeModal('med-modal');toast(editMedId?'Updated ✓':'Added ✓');await loadMeds();
+  setSynced();closeModal('med-modal');toast(editMedId?'Updated ✓':'Added ✓');
+  await loadMeds();
 }
 async function deleteMed(id){if(!confirm('Delete?'))return;setSyncing();await db.from('medicines').delete().eq('id',id);setSynced();toast('Deleted');await loadMeds();}
 
@@ -1310,7 +1387,42 @@ function renderCart(){
 }
 function cartQty(i,d){const med=medsCache.find(m=>m.id===cart[i].id);cart[i].qty=Math.max(1,Math.min(cart[i].qty+d,med?med.qty:999));renderCart();}
 function removeCartItem(i){cart.splice(i,1);renderCart();}
-function openDisc(i){document.getElementById('disc-idx').value=i;document.getElementById('disc-qty').value=cart[i].qty;document.getElementById('disc-val').value=cart[i].disc;document.getElementById('disc-modal').classList.add('open');}
+function openDisc(i){
+  const item=cart[i];
+  document.getElementById('disc-idx').value=i;
+  document.getElementById('disc-qty').value=item.qty;
+  document.getElementById('disc-val').value=item.disc||0;
+  const discAmt=(item.mrp*(item.disc||0)/100);
+  document.getElementById('disc-amt').value=discAmt>0?discAmt.toFixed(2):'';
+  recalcDiscPreview();
+  document.getElementById('disc-modal').classList.add('open');
+}
+function discPctChanged(){
+  const i=parseInt(document.getElementById('disc-idx').value);
+  const mrp=cart[i]?cart[i].mrp:0;
+  const pct=parseFloat(document.getElementById('disc-val').value)||0;
+  const amt=(mrp*pct/100);
+  document.getElementById('disc-amt').value=amt>0?amt.toFixed(2):'';
+  recalcDiscPreview();
+}
+function discAmtChanged(){
+  const i=parseInt(document.getElementById('disc-idx').value);
+  const mrp=cart[i]?cart[i].mrp:0;
+  const amt=parseFloat(document.getElementById('disc-amt').value)||0;
+  const pct=mrp>0?Math.min(100,(amt/mrp)*100):0;
+  document.getElementById('disc-val').value=pct>0?pct.toFixed(2):'';
+  recalcDiscPreview();
+}
+function recalcDiscPreview(){
+  const i=parseInt(document.getElementById('disc-idx').value);
+  const mrp=cart[i]?cart[i].mrp:0;
+  const qty=parseInt(document.getElementById('disc-qty').value)||1;
+  const pct=parseFloat(document.getElementById('disc-val').value)||0;
+  const finalPrice=mrp*(1-pct/100);
+  const lineTotal=finalPrice*qty;
+  document.getElementById('disc-final-price').textContent='₹'+finalPrice.toFixed(2);
+  document.getElementById('disc-line-total').textContent='₹'+lineTotal.toFixed(2);
+}
 function applyDisc(){const i=parseInt(document.getElementById('disc-idx').value);cart[i].qty=Math.max(1,parseInt(document.getElementById('disc-qty').value)||1);cart[i].disc=Math.min(100,Math.max(0,parseFloat(document.getElementById('disc-val').value)||0));closeModal('disc-modal');renderCart();}
 function populateCreditSelect(){
   const sel=document.getElementById('credit-customer-select');
@@ -1376,10 +1488,88 @@ function renderHistory(){
       <div style="text-align:right;flex-shrink:0;">
         <div style="font-size:17px;font-weight:900;">₹${(s.total||0).toFixed(2)}</div>
         <div style="font-size:11px;font-weight:700;color:#059669;margin-top:3px;">+₹${(s.profit||0).toFixed(2)}</div>
-        <button class="btn btn-danger btn-sm" style="margin-top:8px;" onclick="event.stopPropagation();deleteSale('${s.id}')">🗑 Delete</button>
+        <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="event.stopPropagation();editSale('${s.id}')">✏️ Edit</button>
+        <button class="btn btn-danger btn-sm" style="margin-top:6px;" onclick="event.stopPropagation();deleteSale('${s.id}')">🗑 Delete</button>
       </div>
     </div>`).join(''):`<div class="empty-state"><div class="empty-icon">🧾</div><p>No sales yet</p></div>`;
 }
+let editSalePayMode = 'cash';
+let editSaleItems = [];
+
+function editSale(id){
+  const s=salesCache.find(x=>x.id===id);if(!s)return;
+  editSaleItems=(s.items||[]).map(i=>({...i}));
+  editSalePayMode=s.payment_mode||'cash';
+  document.getElementById('edit-sale-id').value=id;
+  document.getElementById('edit-sale-customer').value=s.customer||'';
+  // Set payment mode buttons
+  ['cash','upi','credit'].forEach(m=>{
+    const btn=document.getElementById('edit-pm-'+m);
+    if(btn){btn.classList.remove('active','cash','upi','credit');if(m===editSalePayMode)btn.classList.add('active',m);}
+  });
+  renderEditSaleItems();
+  document.getElementById('edit-sale-modal').classList.add('open');
+}
+
+function setEditPayMode(mode,el){
+  editSalePayMode=mode;
+  document.querySelectorAll('#edit-sale-modal .pay-mode-btn').forEach(b=>b.classList.remove('active','cash','upi','credit'));
+  el.classList.add('active',mode);
+}
+
+function renderEditSaleItems(){
+  const wrap=document.getElementById('edit-sale-items-wrap');
+  const totalEl=document.getElementById('edit-sale-total');
+  wrap.innerHTML=`<div style="font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Items</div>`+
+  editSaleItems.map((item,i)=>{
+    const lineAmt=(item.qty*item.mrp*(1-(item.disc||0)/100));
+    return`<div class="cart-item">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div class="cart-item-name">${item.name}</div>
+        <button class="cart-remove" onclick="editSaleItems.splice(${i},1);renderEditSaleItems();">✕</button>
+      </div>
+      <div class="form-row" style="gap:8px;">
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Qty</label>
+          <input type="number" min="1" value="${item.qty}" inputmode="numeric"
+            onchange="editSaleItems[${i}].qty=parseInt(this.value)||1;renderEditSaleItems();" style="padding:8px;text-align:center;"/>
+        </div>
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">MRP ₹</label>
+          <input type="number" value="${item.mrp}" inputmode="decimal"
+            onchange="editSaleItems[${i}].mrp=parseFloat(this.value)||0;renderEditSaleItems();" style="padding:8px;"/>
+        </div>
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Disc %</label>
+          <input type="number" min="0" max="100" value="${item.disc||0}" inputmode="decimal"
+            onchange="editSaleItems[${i}].disc=parseFloat(this.value)||0;renderEditSaleItems();" style="padding:8px;"/>
+        </div>
+      </div>
+      <div style="text-align:right;font-weight:900;color:var(--p1);font-size:14px;margin-top:6px;">₹${lineAmt.toFixed(2)}</div>
+    </div>`;
+  }).join('');
+  const total=editSaleItems.reduce((a,i)=>a+i.qty*i.mrp*(1-(i.disc||0)/100),0);
+  totalEl.innerHTML=`<div class="total-card"><div class="total-row grand"><span>Total</span><span class="amount">₹${total.toFixed(2)}</span></div></div>`;
+}
+
+async function saveEditedSale(){
+  const id=document.getElementById('edit-sale-id').value;
+  const s=salesCache.find(x=>x.id===id);if(!s)return;
+  const btn=document.getElementById('save-edit-sale-btn');btn.disabled=true;setSyncing();
+  const customer=document.getElementById('edit-sale-customer').value.trim()||'Walk-in';
+  const total=editSaleItems.reduce((a,i)=>a+i.qty*i.mrp*(1-(i.disc||0)/100),0);
+  // Recalculate profit using current medicine costs
+  const profit=editSaleItems.reduce((a,item)=>{
+    const med=medsCache.find(m=>m.id===item.id);
+    const cost=med?med.cost:item.cost||0;
+    return a+(item.mrp*(1-(item.disc||0)/100)-cost)*item.qty;
+  },0);
+  const{error}=await db.from('sales').update({
+    customer,items:editSaleItems,total,profit,payment_mode:editSalePayMode
+  }).eq('id',id);
+  btn.disabled=false;
+  if(error){setSyncError();toast('Error saving','error');return;}
+  setSynced();closeModal('edit-sale-modal');toast('Sale updated ✓');
+  await loadSales();
+}
+
 async function deleteSale(id){
   const s=salesCache.find(x=>x.id===id);
   if(!s)return;
