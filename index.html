@@ -50,7 +50,7 @@ body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);}
 
 /* LAYOUT */
 #app{height:100%;display:flex;flex-direction:column;}
-#content-wrap{flex:1;display:flex;overflow:hidden;}
+#content-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 #sidebar{display:none;width:260px;background:var(--white);border-right:1px solid var(--border);flex-direction:column;flex-shrink:0;}
 #pages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + var(--safe-b));}
 
@@ -330,7 +330,7 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
 </div>
 
 <!-- MAIN APP -->
-<div id="app" style="flex-direction:column;">
+<div id="app">
 <div id="sidebar" style="display:none;">
   <div class="sidebar-logo">
     <div class="sidebar-logo-icon">💊</div>
@@ -358,7 +358,7 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   </div>
 </div>
 
-<div id="content-wrap" style="width:100%;flex-direction:column;">
+<div id="content-wrap">
 <div id="mob-header">
   <div class="logo-mark">
     <div class="logo-icon">💊</div>
@@ -901,11 +901,16 @@ function fixLayout(){
   if(isDesktop){
     sidebar.style.display='flex';
     sidebar.style.flexDirection='column';
+    app.style.display='flex';
     app.style.flexDirection='row';
-    wrap.style.flexDirection='row';
+    wrap.style.display='flex';
+    wrap.style.flexDirection='column';
+    wrap.style.width='';
   } else {
     sidebar.style.display='none';
+    app.style.display='flex';
     app.style.flexDirection='column';
+    wrap.style.display='flex';
     wrap.style.flexDirection='column';
     wrap.style.width='100%';
   }
@@ -1189,13 +1194,17 @@ function updateLowStockBadge(){
 // ── NAV ──
 const titles={dashboard:'Dashboard',sales:'New Sale',history:'History',stock:'Stock',lowstock:'Stock Health',purchase:'Stock Purchase',barcodes:'Barcodes',payments:'Payments',credit:'Credit',report:'Daily Report',analytics:'Analytics',distributors:'Distributors',suppliers:'Suppliers'};
 function nav(page,el){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.snav,.bnav').forEach(n=>n.classList.remove('active'));
-  document.getElementById('page-'+page).classList.add('active');
-  if(el)el.classList.add('active');
-  document.getElementById('mob-page-title').textContent=titles[page]||'';
-  const fns={dashboard:renderDashboard,stock:renderStock,lowstock:renderLowStock,history:renderHistory,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
-  fns[page]?.();
+  try{
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.snav,.bnav').forEach(n=>n.classList.remove('active'));
+    const pageEl=document.getElementById('page-'+page);
+    if(!pageEl){console.error('Page not found:',page);return;}
+    pageEl.classList.add('active');
+    if(el)el.classList.add('active');
+    document.getElementById('mob-page-title').textContent=titles[page]||'';
+    const fns={dashboard:renderDashboard,stock:renderStock,lowstock:renderLowStock,history:renderHistory,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
+    fns[page]?.();
+  }catch(e){console.error('Nav error:',e);toast('Error loading page: '+e.message,'error');}
 }
 
 // ── DASHBOARD ──
