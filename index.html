@@ -2515,6 +2515,74 @@ function renderReport(){
   </div>`;
 }
 
+// ── CART FUNCTIONS ──
+function removeCartItem(i){cart.splice(i,1);renderCart();}
+function cartQty(i,d){cart[i].qty=Math.max(1,cart[i].qty+d);renderCart();}
+function updateLowBadge(){
+  const batchQtyMap={};batchesCache.forEach(b=>{if(!batchQtyMap[b.medicine_id])batchQtyMap[b.medicine_id]=0;batchQtyMap[b.medicine_id]+=(b.qty||0);});
+  const lowCount=medsCache.filter(m=>{const q=batchQtyMap[m.id]!==undefined?batchQtyMap[m.id]:(m.qty||0);return q<=(m.low||10);}).length;
+  const badge=document.getElementById('low-badge-side');
+  if(badge){badge.textContent=lowCount;badge.style.display=lowCount>0?'inline-flex':'none';}
+}
+
+// ── DISC MODAL ──
+function openDisc(i){
+  const item=cart[i];
+  document.getElementById('disc-idx').value=i;
+  document.getElementById('disc-qty').value=item.qty;
+  document.getElementById('disc-val').value=item.disc||0;
+  const discAmt=(item.mrp*(item.disc||0)/100);
+  document.getElementById('disc-amt').value=discAmt>0?discAmt.toFixed(2):'';
+  recalcDiscPreview();
+  document.getElementById('disc-modal').classList.add('open');
+}
+function discPctChanged(){
+  const i=parseInt(document.getElementById('disc-idx').value);
+  const mrp=cart[i]?cart[i].mrp:0;
+  const pct=parseFloat(document.getElementById('disc-val').value)||0;
+  document.getElementById('disc-amt').value=mrp>0?(mrp*pct/100).toFixed(2):'';
+  recalcDiscPreview();
+}
+function discAmtChanged(){
+  const i=parseInt(document.getElementById('disc-idx').value);
+  const mrp=cart[i]?cart[i].mrp:0;
+  const amt=parseFloat(document.getElementById('disc-amt').value)||0;
+  document.getElementById('disc-val').value=mrp>0?Math.min(100,(amt/mrp)*100).toFixed(2):'';
+  recalcDiscPreview();
+}
+function recalcDiscPreview(){
+  const i=parseInt(document.getElementById('disc-idx').value);
+  const mrp=cart[i]?cart[i].mrp:0;
+  const qty=parseInt(document.getElementById('disc-qty').value)||1;
+  const pct=parseFloat(document.getElementById('disc-val').value)||0;
+  const finalPrice=mrp*(1-pct/100);
+  const lineTotal=finalPrice*qty;
+  const fp=document.getElementById('disc-final-price');
+  const lt=document.getElementById('disc-line-total');
+  if(fp)fp.textContent='₹'+finalPrice.toFixed(2);
+  if(lt)lt.textContent='₹'+lineTotal.toFixed(2);
+}
+function applyDisc(){
+  const i=parseInt(document.getElementById('disc-idx').value);
+  if(cart[i]){
+    cart[i].qty=parseInt(document.getElementById('disc-qty').value)||1;
+    cart[i].disc=parseFloat(document.getElementById('disc-val').value)||0;
+  }
+  closeModal('disc-modal');
+  renderCart();
+}
+
+// ── CREDIT SELECT ──
+function populateCreditSelect(){
+  const sel=document.getElementById('credit-customer-select');if(!sel)return;
+  sel.innerHTML='<option value="">-- Select Customer --</option>'+creditCustomersCache.map(c=>`<option value="${c.id}" data-phone="${c.phone||''}">${c.name}${c.total_credit>0?' (Owes ₹'+c.total_credit.toFixed(2)+')':''}</option>`).join('');
+  sel.onchange=function(){
+    const opt=sel.options[sel.selectedIndex];
+    const ph=opt?opt.getAttribute('data-phone')||'':'';
+    if(ph){const pf=document.getElementById('customer-phone');if(pf){pf.value=ph;enteredCustomerPhone=ph;}}
+  };
+}
+
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function fmtN(n){return n>=100000?'\u20b9'+(n/100000).toFixed(1)+'L':n>=1000?(n/1000).toFixed(1)+'k':n.toFixed(0);}
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
