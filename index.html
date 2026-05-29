@@ -1064,7 +1064,8 @@ const db = createClient(SUPA_URL, SUPA_KEY);
 
 // ── STATE ──
 let cart=[], purCart=[], editMedId=null, billDiscPct=0, billDiscAmt=0;
-let batchesCache=[];, dashTab_='today', payTab_='payable';
+let batchesCache=[];
+let dashTab_='today', payTab_='payable';
 let enteredCustomerPhone='';
 let scanStream=null, scanInt=null, bcSel={}, payMode='cash', purMode='cash';
 let currentCreditCustomerId=null;
@@ -2106,27 +2107,15 @@ function renderHistory(){
 }
 function viewInvoice(id){
   const s=salesCache.find(x=>x.id===id);if(!s)return;
-  const lines=(s.items||[]).map(i=>`  ${(i.name||'').substring(0,22).padEnd(22)} x${i.qty}  \u20b9${(i.mrp*(1-i.disc/100)).toFixed(2)} = \u20b9${(i.qty*i.mrp*(1-i.disc/100)).toFixed(2)}`).join('
-');
-  const txt=`${STORE_NAME}
-${STORE_CITY}
-${'\u2500'.repeat(32)}
-Invoice : ${s.id}
-Date    : ${new Date(s.date).toLocaleString('en-IN')}
-Customer: ${s.customer}
-Payment : ${(s.payment_mode||'cash').toUpperCase()}
-${'\u2500'.repeat(32)}
-${lines}
-${'\u2500'.repeat(32)}
-TOTAL   : \u20b9${(s.total||0).toFixed(2)}
-Profit  : \u20b9${(s.profit||0).toFixed(2)}
-${'\u2501'.repeat(32)}
-       Thank you! \ud83d\ude4f
-${'\u2501'.repeat(32)}`;
+  const lines=(s.items||[]).map(i=>`  ${(i.name||'').substring(0,22).padEnd(22)} x${i.qty}  Rs.${(i.mrp*(1-((i.disc||0)/100))).toFixed(2)}`).join('\n');
+  const sep='─'.repeat(32);
+  const txt=`${STORE_NAME}\n${STORE_CITY}\n${sep}\nInvoice : ${s.id}\nDate    : ${new Date(s.date).toLocaleString('en-IN')}\nCustomer: ${s.customer||'Walk-in'}\nPayment : ${(s.payment_mode||'cash').toUpperCase()}\n${sep}\n${lines}\n${sep}\nTOTAL   : Rs.${(s.total||0).toFixed(2)}\nProfit  : Rs.${(s.profit||0).toFixed(2)}\n${sep}\n   Thank you! Have a great day!\n${sep}`;
+  currentInvoiceSale=s;
   document.getElementById('invoice-content').textContent=txt;
   document.getElementById('print-invoice').textContent=txt;
   document.getElementById('invoice-modal').classList.add('open');
 }
+
 function printInv(){closeModal('invoice-modal');document.getElementById('print-invoice').style.display='block';setTimeout(()=>{window.print();document.getElementById('print-invoice').style.display='none';},200);}
 
 // \u2500\u2500 EXPORT EXCEL \u2500\u2500
