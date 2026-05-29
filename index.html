@@ -753,6 +753,40 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
       <input type="text" id="m-gst-amt" readonly placeholder="Auto calculated" style="background:var(--bg);color:var(--text2);cursor:not-allowed;"/>
     </div>
   </div>
+  <div style="background:rgba(6,214,160,.08);border:1px solid rgba(6,214,160,.2);border-radius:var(--r-sm);padding:12px;margin-bottom:14px;">
+    <div style="font-size:12px;font-weight:800;color:#059669;margin-bottom:10px;">🎁 Purchase Scheme / Discount</div>
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:8px;">
+        <label>Cash Discount %</label>
+        <input type="number" id="m-cash-disc" placeholder="0" min="0" max="100" inputmode="decimal" oninput="calcGstAmt()"/>
+      </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label>Cash Discount ₹</label>
+        <input type="number" id="m-cash-disc-amt" placeholder="0.00" inputmode="decimal" oninput="calcCashDiscFromAmt()"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Scheme (Buy X Get Y)</label>
+        <select id="m-scheme">
+          <option value="">No Scheme</option>
+          <option value="buy1get1">Buy 1 Get 1 Free</option>
+          <option value="buy2get1">Buy 2 Get 1 Free</option>
+          <option value="buy3get1">Buy 3 Get 1 Free</option>
+          <option value="buy5get1">Buy 5 Get 1 Free</option>
+          <option value="buy10get1">Buy 10 Get 1 Free</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Custom Scheme</label>
+        <input id="m-scheme-custom" placeholder="e.g. Buy 4 Get 2 Free"/>
+      </div>
+    </div>
+    <div id="m-effective-cost-wrap" style="margin-top:10px;background:white;border-radius:var(--r-xs);padding:8px 12px;font-size:12px;font-weight:700;color:#059669;display:none;">
+      Effective Cost after discount: <span id="m-effective-cost">₹0</span>
+    </div>
+  </div>
   <div class="form-group"><label>Composition / Salt</label>
     <input id="m-composition" placeholder="e.g. Paracetamol 650mg, Ibuprofen 400mg"/>
     <div style="font-size:11px;color:var(--text2);margin-top:4px;">💡 Enter the active ingredients — used to find substitutes</div>
@@ -1376,7 +1410,24 @@ function renderDashboard(){
   const creditSales=fs.filter(s=>s.payment_mode==='credit').reduce((a,s)=>a+(s.total||0),0);
   const totalCredit=creditCustomersCache.reduce((a,c)=>a+(c.total_credit||0),0);
   const dashLabels={today:'Today',yesterday:'Yesterday',week:'This Week',month:'This Month',quarter:'This Quarter',year:'This Year',date:'Selected Date','month-pick':'Selected Month'};
-  document.getElementById('dash-hero').innerHTML=`<div class="hero-banner"><p style="color:rgba(255,255,255,.7);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">${dashLabels[dashTab_]||'Period'} Revenue</p><div class="hero-amount">₹${fmtN(rev)}</div><div class="hero-sub">${fs.length} transactions · ₹${fmtN(prof)} profit · ${rev?((prof/rev)*100).toFixed(1):0}% margin</div></div>`;
+  // Calculate withdrawals for the same period
+  let wdCutoff = new Date(); wdCutoff.setHours(0,0,0,0);
+  if(dashTab_==='week'){wdCutoff=new Date();wdCutoff.setDate(wdCutoff.getDate()-7);}
+  else if(dashTab_==='month'){wdCutoff=new Date();wdCutoff.setDate(1);wdCutoff.setHours(0,0,0,0);}
+  else if(dashTab_==='quarter'){wdCutoff=new Date();wdCutoff.setMonth(Math.floor(wdCutoff.getMonth()/3)*3);wdCutoff.setDate(1);wdCutoff.setHours(0,0,0,0);}
+  else if(dashTab_==='year'){wdCutoff=new Date();wdCutoff.setMonth(0);wdCutoff.setDate(1);wdCutoff.setHours(0,0,0,0);}
+  const periodWithdrawals = (dashTab_==='all'?withdrawalsCache:withdrawalsCache.filter(w=>new Date(w.date)>=wdCutoff));
+  const totalWD = periodWithdrawals.reduce((a,w)=>a+(w.amount||0),0);
+  const netInDrawer = rev - totalWD;
+  document.getElementById('dash-hero').innerHTML=`<div class="hero-banner">
+    <p style="color:rgba(255,255,255,.7);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;">${dashLabels[dashTab_]||'Period'} Revenue</p>
+    <div class="hero-amount">₹${fmtN(rev)}</div>
+    <div class="hero-sub">${fs.length} transactions · ₹${fmtN(prof)} profit · ${rev?((prof/rev)*100).toFixed(1):0}% margin</div>
+    ${totalWD>0?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.2);display:flex;gap:16px;">
+      <span style="font-size:12px;color:rgba(255,255,255,.8);">💸 Withdrawn: <strong>₹${fmtN(totalWD)}</strong></span>
+      <span style="font-size:12px;color:rgba(255,255,255,.8);">🏦 Net in drawer: <strong>₹${fmtN(netInDrawer)}</strong></span>
+    </div>`:''}
+  </div>`;
   document.getElementById('dash-stats').innerHTML=`
     <div class="stat-card"><div class="stat-icon green">💵</div><div class="stat-label">Cash</div><div class="stat-value green">₹${fmtN(cashSales)}</div></div>
     <div class="stat-card"><div class="stat-icon blue">📱</div><div class="stat-label">UPI</div><div class="stat-value blue">₹${fmtN(upiSales)}</div></div>
@@ -1418,6 +1469,7 @@ function renderStock(){
           <span class="badge ${low?'badge-red':'badge-green'}">${m.qty} in stock</span>
           <span class="badge badge-purple">₹${m.mrp}</span>
           ${expS?`<span class="badge badge-yellow">Exp ${m.expiry}</span>`:''}
+          ${m.scheme&&m.scheme!==''?`<span class="badge badge-pink">🎁 ${m.scheme==='custom'?m.scheme_custom||'Scheme':m.scheme.replace('buy','Buy ').replace('get',' Get ').replace('1',' 1 Free').replace('free','')}</span>`:''}
         </div>
       </div>
       <div class="dot-menu-wrap">
@@ -1440,21 +1492,38 @@ function renderStock(){
   document.getElementById('stock-list').innerHTML=html;
 }
 
-function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack','m-composition'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';document.getElementById('m-gst').value='0';document.getElementById('m-gst-amt').value='';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
+function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack','m-composition','m-cash-disc','m-cash-disc-amt','m-scheme-custom'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-scheme').value='';const ew=document.getElementById('m-effective-cost-wrap');if(ew)ew.style.display='none';document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';document.getElementById('m-gst').value='0';document.getElementById('m-gst-amt').value='';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
 function calcGstAmt(){
   const cost=parseFloat(document.getElementById('m-cost').value)||0;
   const mrp=parseFloat(document.getElementById('m-mrp').value)||0;
   const gst=parseFloat(document.getElementById('m-gst').value)||0;
-  if(cost>0&&gst>0){
-    const gstAmt=(cost*gst/100);
-    const effectiveCost=cost+gstAmt;
+  const cashDisc=parseFloat(document.getElementById('m-cash-disc').value)||0;
+  const gstAmt=cost*gst/100;
+  const discAmt=cost*cashDisc/100;
+  const effectiveCost=cost+gstAmt-discAmt;
+  // Update cash disc amount field
+  if(cashDisc>0) document.getElementById('m-cash-disc-amt').value=discAmt.toFixed(2);
+  if(cost>0){
     const profit=mrp-effectiveCost;
-    document.getElementById('m-gst-amt').value=`GST: ₹${gstAmt.toFixed(2)} | Net Cost: ₹${effectiveCost.toFixed(2)} | Profit: ₹${profit.toFixed(2)}`;
-  } else if(cost>0&&mrp>0){
-    document.getElementById('m-gst-amt').value=`Profit: ₹${(mrp-cost).toFixed(2)}`;
+    let msg='';
+    if(gst>0) msg+=`GST: ₹${gstAmt.toFixed(2)} | `;
+    if(cashDisc>0) msg+=`Disc: -₹${discAmt.toFixed(2)} | `;
+    msg+=`Net Cost: ₹${effectiveCost.toFixed(2)} | Profit: ₹${profit.toFixed(2)}`;
+    document.getElementById('m-gst-amt').value=msg;
+    // Show effective cost
+    const wrap=document.getElementById('m-effective-cost-wrap');
+    if(wrap){wrap.style.display='block';document.getElementById('m-effective-cost').textContent='₹'+effectiveCost.toFixed(2)+' (Profit: ₹'+profit.toFixed(2)+')';}
   } else {
     document.getElementById('m-gst-amt').value='';
+    const wrap=document.getElementById('m-effective-cost-wrap');
+    if(wrap)wrap.style.display='none';
   }
+}
+function calcCashDiscFromAmt(){
+  const cost=parseFloat(document.getElementById('m-cost').value)||0;
+  const amt=parseFloat(document.getElementById('m-cash-disc-amt').value)||0;
+  if(cost>0){document.getElementById('m-cash-disc').value=((amt/cost)*100).toFixed(2);}
+  calcGstAmt();
 }
 function showMedSuggestions(val){
   const box = document.getElementById('med-suggestions');
@@ -1491,7 +1560,7 @@ document.addEventListener('click', e=>{
 });
 
 function populateMedDistSelect(){const sel=document.getElementById('m-distributor');sel.innerHTML='<option value="">-- Select Distributor (optional) --</option>'+distributorsCache.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');}
-function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';document.getElementById('m-composition').value=m.composition||'';document.getElementById('m-gst').value=m.gst||'0';populateMedDistSelect();document.getElementById('m-distributor').value=m.distributor_id||'';calcGstAmt();document.getElementById('med-modal').classList.add('open');}
+function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';document.getElementById('m-composition').value=m.composition||'';document.getElementById('m-cash-disc').value=m.cash_disc||'';document.getElementById('m-cash-disc-amt').value=m.cash_disc_amt||'';document.getElementById('m-scheme').value=m.scheme||'';document.getElementById('m-scheme-custom').value=m.scheme_custom||'';document.getElementById('m-gst').value=m.gst||'0';populateMedDistSelect();document.getElementById('m-distributor').value=m.distributor_id||'';calcGstAmt();document.getElementById('med-modal').classList.add('open');}
 async function saveMed(){
   const name=document.getElementById('m-name').value.trim();if(!name)return toast('Name required','error');
   const btn=document.getElementById('save-med-btn');btn.disabled=true;setSyncing();
@@ -1500,8 +1569,10 @@ async function saveMed(){
   const rawCost=parseFloat(document.getElementById('m-cost').value)||0;
   const gstRate=parseFloat(document.getElementById('m-gst').value)||0;
   const gstAmt=rawCost*gstRate/100;
-  const effectiveCost=rawCost+gstAmt; // actual cost including GST
-  const med={id:editMedId||'med_'+Date.now(),name,barcode:document.getElementById('m-barcode').value.trim()||'BC'+Date.now().toString().slice(-8),mfr:document.getElementById('m-mfr').value.trim(),cat:document.getElementById('m-cat').value,mrp:parseFloat(document.getElementById('m-mrp').value)||0,cost:effectiveCost,raw_cost:rawCost,gst:gstRate,gst_amt:gstAmt,qty:parseInt(document.getElementById('m-qty').value)||0,low:parseInt(document.getElementById('m-low').value)||10,batch:document.getElementById('m-batch').value.trim(),expiry:document.getElementById('m-expiry').value||null,pack:document.getElementById('m-pack').value.trim(),composition:document.getElementById('m-composition').value.trim(),distributor_id:distId,distributor_name:distName};
+  const cashDiscPct=parseFloat(document.getElementById('m-cash-disc').value)||0;
+  const cashDiscAmt=rawCost*cashDiscPct/100;
+  const effectiveCost=rawCost+gstAmt-cashDiscAmt; // actual cost after GST and discount
+  const med={id:editMedId||'med_'+Date.now(),name,barcode:document.getElementById('m-barcode').value.trim()||'BC'+Date.now().toString().slice(-8),mfr:document.getElementById('m-mfr').value.trim(),cat:document.getElementById('m-cat').value,mrp:parseFloat(document.getElementById('m-mrp').value)||0,cost:effectiveCost,raw_cost:rawCost,gst:gstRate,gst_amt:gstAmt,qty:parseInt(document.getElementById('m-qty').value)||0,low:parseInt(document.getElementById('m-low').value)||10,batch:document.getElementById('m-batch').value.trim(),expiry:document.getElementById('m-expiry').value||null,pack:document.getElementById('m-pack').value.trim(),composition:document.getElementById('m-composition').value.trim(),distributor_id:distId,distributor_name:distName,cash_disc:cashDiscPct,cash_disc_amt:cashDiscAmt,scheme:document.getElementById('m-scheme').value,scheme_custom:document.getElementById('m-scheme-custom').value.trim()};
   const{error}=await db.from('medicines').upsert(med);
   btn.disabled=false;
   if(error){setSyncError();toast('Error: '+error.message,'error');return;}
