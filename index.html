@@ -727,7 +727,7 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     <div class="form-group"><label>Cost (₹) *</label><input type="number" id="m-cost" placeholder="0.00" inputmode="decimal" oninput="calcGstAmt()"/></div>
   </div>
   <div class="form-row">
-    <div class="form-group"><label>Stock Qty</label><input type="number" id="m-qty" placeholder="0" inputmode="numeric"/></div>
+    <div class="form-group"><label>Stock Qty (units purchased)</label><input type="number" id="m-qty" placeholder="0" inputmode="numeric" oninput="onSchemeChange()"/></div>
     <div class="form-group"><label>Low Alert</label><input type="number" id="m-low" placeholder="10" inputmode="numeric"/></div>
   </div>
   <div class="form-row">
@@ -768,23 +768,26 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     <div class="form-row">
       <div class="form-group" style="margin-bottom:0;">
         <label>Scheme (Buy X Get Y)</label>
-        <select id="m-scheme">
+        <select id="m-scheme" onchange="onSchemeChange()">
           <option value="">No Scheme</option>
-          <option value="buy1get1">Buy 1 Get 1 Free</option>
-          <option value="buy2get1">Buy 2 Get 1 Free</option>
-          <option value="buy3get1">Buy 3 Get 1 Free</option>
-          <option value="buy5get1">Buy 5 Get 1 Free</option>
-          <option value="buy10get1">Buy 10 Get 1 Free</option>
-          <option value="custom">Custom…</option>
+          <option value="1+1">Buy 1 Get 1 Free (1+1)</option>
+          <option value="2+1">Buy 2 Get 1 Free (2+1)</option>
+          <option value="3+1">Buy 3 Get 1 Free (3+1)</option>
+          <option value="1+4">Buy 1 Get 4 Free (1+4)</option>
+          <option value="5+1">Buy 5 Get 1 Free (5+1)</option>
+          <option value="10+1">Buy 10 Get 1 Free (10+1)</option>
+          <option value="custom">Custom (enter below e.g. 2+3)</option>
         </select>
       </div>
       <div class="form-group" style="margin-bottom:0;">
-        <label>Custom Scheme</label>
-        <input id="m-scheme-custom" placeholder="e.g. Buy 4 Get 2 Free"/>
+        <label>Custom Scheme (X+Y format)</label>
+        <input id="m-scheme-custom" placeholder="e.g. 4+2 means Buy 4 Get 2 Free" oninput="onSchemeChange()"/>
+        <div style="font-size:11px;color:var(--text2);margin-top:3px;">Enter as Buy+Free e.g. 1+4, 2+3, 10+2</div>
       </div>
     </div>
     <div id="m-effective-cost-wrap" style="margin-top:10px;background:white;border-radius:var(--r-xs);padding:8px 12px;font-size:12px;font-weight:700;color:#059669;display:none;">
-      Effective Cost after discount: <span id="m-effective-cost">₹0</span>
+      <div>Effective Cost after discount: <span id="m-effective-cost">₹0</span></div>
+      <div id="m-scheme-info" style="color:var(--b1);margin-top:4px;"></div>
     </div>
   </div>
   <div class="form-group"><label>Composition / Salt</label>
@@ -1469,7 +1472,7 @@ function renderStock(){
           <span class="badge ${low?'badge-red':'badge-green'}">${m.qty} in stock</span>
           <span class="badge badge-purple">₹${m.mrp}</span>
           ${expS?`<span class="badge badge-yellow">Exp ${m.expiry}</span>`:''}
-          ${m.scheme&&m.scheme!==''?`<span class="badge badge-pink">🎁 ${m.scheme==='custom'?m.scheme_custom||'Scheme':m.scheme.replace('buy','Buy ').replace('get',' Get ').replace('1',' 1 Free').replace('free','')}</span>`:''}
+          ${m.scheme&&m.scheme!==''?`<span class="badge badge-pink">🎁 ${m.scheme_label||m.scheme}</span>`:''}
         </div>
       </div>
       <div class="dot-menu-wrap">
@@ -1492,7 +1495,7 @@ function renderStock(){
   document.getElementById('stock-list').innerHTML=html;
 }
 
-function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack','m-composition','m-cash-disc','m-cash-disc-amt','m-scheme-custom'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-scheme').value='';const ew=document.getElementById('m-effective-cost-wrap');if(ew)ew.style.display='none';document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';document.getElementById('m-gst').value='0';document.getElementById('m-gst-amt').value='';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
+function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack','m-composition','m-cash-disc','m-cash-disc-amt','m-scheme-custom'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-scheme').value='';const ew=document.getElementById('m-effective-cost-wrap');if(ew)ew.style.display='none';const si=document.getElementById('m-scheme-info');if(si)si.textContent='';document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';document.getElementById('m-gst').value='0';document.getElementById('m-gst-amt').value='';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
 function calcGstAmt(){
   const cost=parseFloat(document.getElementById('m-cost').value)||0;
   const mrp=parseFloat(document.getElementById('m-mrp').value)||0;
@@ -1523,6 +1526,44 @@ function calcCashDiscFromAmt(){
   const cost=parseFloat(document.getElementById('m-cost').value)||0;
   const amt=parseFloat(document.getElementById('m-cash-disc-amt').value)||0;
   if(cost>0){document.getElementById('m-cash-disc').value=((amt/cost)*100).toFixed(2);}
+  calcGstAmt();
+}
+
+function parseScheme(schemeVal, customVal){
+  // Returns {buy, free, total} or null
+  let str = schemeVal==='custom' ? customVal : schemeVal;
+  if(!str) return null;
+  // Parse X+Y format
+  const match = str.match(/^(\d+)\+(\d+)$/);
+  if(match){
+    const buy=parseInt(match[1]);
+    const free=parseInt(match[2]);
+    return {buy, free, total:buy+free, label:`Buy ${buy} Get ${free} Free`};
+  }
+  return null;
+}
+
+function onSchemeChange(){
+  const schemeVal = document.getElementById('m-scheme').value;
+  const customVal = document.getElementById('m-scheme-custom').value.trim();
+  const qty = parseInt(document.getElementById('m-qty').value)||0;
+  const parsed = parseScheme(schemeVal, customVal);
+  const infoEl = document.getElementById('m-scheme-info');
+  const wrap = document.getElementById('m-effective-cost-wrap');
+
+  if(parsed && qty>0){
+    // Auto-calculate stock: entered qty * (buy+free)/buy
+    const totalStock = Math.floor(qty / parsed.buy) * parsed.total + (qty % parsed.buy);
+    if(infoEl) infoEl.textContent = `📦 ${parsed.label}: Enter qty ${qty} → Stock becomes ${totalStock} units`;
+    if(wrap) wrap.style.display='block';
+    // Update qty field with calculated stock
+    document.getElementById('m-qty').value = totalStock;
+  } else if(parsed){
+    if(infoEl) infoEl.textContent = `📦 ${parsed.label}: Enter quantity to auto-calculate stock`;
+    if(wrap) wrap.style.display='block';
+  } else {
+    if(infoEl) infoEl.textContent = '';
+  }
   calcGstAmt();
 }
 function showMedSuggestions(val){
@@ -1560,7 +1601,7 @@ document.addEventListener('click', e=>{
 });
 
 function populateMedDistSelect(){const sel=document.getElementById('m-distributor');sel.innerHTML='<option value="">-- Select Distributor (optional) --</option>'+distributorsCache.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');}
-function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';document.getElementById('m-composition').value=m.composition||'';document.getElementById('m-cash-disc').value=m.cash_disc||'';document.getElementById('m-cash-disc-amt').value=m.cash_disc_amt||'';document.getElementById('m-scheme').value=m.scheme||'';document.getElementById('m-scheme-custom').value=m.scheme_custom||'';document.getElementById('m-gst').value=m.gst||'0';populateMedDistSelect();document.getElementById('m-distributor').value=m.distributor_id||'';calcGstAmt();document.getElementById('med-modal').classList.add('open');}
+function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';document.getElementById('m-composition').value=m.composition||'';document.getElementById('m-cash-disc').value=m.cash_disc||'';document.getElementById('m-cash-disc-amt').value=m.cash_disc_amt||'';document.getElementById('m-scheme').value=m.scheme||'';document.getElementById('m-scheme-custom').value=m.scheme_custom||'';onSchemeChange();document.getElementById('m-gst').value=m.gst||'0';populateMedDistSelect();document.getElementById('m-distributor').value=m.distributor_id||'';calcGstAmt();document.getElementById('med-modal').classList.add('open');}
 async function saveMed(){
   const name=document.getElementById('m-name').value.trim();if(!name)return toast('Name required','error');
   const btn=document.getElementById('save-med-btn');btn.disabled=true;setSyncing();
@@ -1572,7 +1613,10 @@ async function saveMed(){
   const cashDiscPct=parseFloat(document.getElementById('m-cash-disc').value)||0;
   const cashDiscAmt=rawCost*cashDiscPct/100;
   const effectiveCost=rawCost+gstAmt-cashDiscAmt; // actual cost after GST and discount
-  const med={id:editMedId||'med_'+Date.now(),name,barcode:document.getElementById('m-barcode').value.trim()||'BC'+Date.now().toString().slice(-8),mfr:document.getElementById('m-mfr').value.trim(),cat:document.getElementById('m-cat').value,mrp:parseFloat(document.getElementById('m-mrp').value)||0,cost:effectiveCost,raw_cost:rawCost,gst:gstRate,gst_amt:gstAmt,qty:parseInt(document.getElementById('m-qty').value)||0,low:parseInt(document.getElementById('m-low').value)||10,batch:document.getElementById('m-batch').value.trim(),expiry:document.getElementById('m-expiry').value||null,pack:document.getElementById('m-pack').value.trim(),composition:document.getElementById('m-composition').value.trim(),distributor_id:distId,distributor_name:distName,cash_disc:cashDiscPct,cash_disc_amt:cashDiscAmt,scheme:document.getElementById('m-scheme').value,scheme_custom:document.getElementById('m-scheme-custom').value.trim()};
+  const med={id:editMedId||'med_'+Date.now(),name,barcode:document.getElementById('m-barcode').value.trim()||'BC'+Date.now().toString().slice(-8),mfr:document.getElementById('m-mfr').value.trim(),cat:document.getElementById('m-cat').value,mrp:parseFloat(document.getElementById('m-mrp').value)||0,cost:effectiveCost,raw_cost:rawCost,gst:gstRate,gst_amt:gstAmt,qty:parseInt(document.getElementById('m-qty').value)||0,low:parseInt(document.getElementById('m-low').value)||10,batch:document.getElementById('m-batch').value.trim(),expiry:document.getElementById('m-expiry').value||null,pack:document.getElementById('m-pack').value.trim(),composition:document.getElementById('m-composition').value.trim(),distributor_id:distId,distributor_name:distName,cash_disc:cashDiscPct,cash_disc_amt:cashDiscAmt,scheme:document.getElementById('m-scheme').value,
+        scheme_custom:document.getElementById('m-scheme-custom').value.trim(),
+        scheme_label:(()=>{const sv=document.getElementById('m-scheme').value;const cv=document.getElementById('m-scheme-custom').value.trim();const p=parseScheme(sv,cv);return p?p.label:'';})()
+      };
   const{error}=await db.from('medicines').upsert(med);
   btn.disabled=false;
   if(error){setSyncError();toast('Error: '+error.message,'error');return;}
