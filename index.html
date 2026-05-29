@@ -2455,6 +2455,66 @@ function numberToWords(num){const ones=['','One','Two','Three','Four','Five','Si
 async function autoSendWhatsApp(sale,phone=''){if(!phone||phone.replace(/[^0-9]/g,'').length<10){const el=document.getElementById('toast');el.innerHTML=`Sale saved! <span onclick="promptSendWA('${sale.id}')" style="text-decoration:underline;cursor:pointer;margin-left:6px;">📲 Send Bill</span>`;el.className='show success';clearTimeout(el._t);el._t=setTimeout(()=>el.className='',5000);return;}try{const doc=await generatePDF(sale);const pdfBlob=doc.output('blob');const pdfFile=new File([pdfBlob],`Bill_${sale.id}.pdf`,{type:'application/pdf'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[pdfFile]})){await navigator.share({title:`Bill from ${STORE_NAME}`,files:[pdfFile]});}else{const url=URL.createObjectURL(pdfBlob);const a=document.createElement('a');a.href=url;a.download=`Bill_${sale.id}.pdf`;a.click();URL.revokeObjectURL(url);setTimeout(()=>{const cleaned=phone.replace(/[^0-9]/g,'');const withCode=cleaned.startsWith('91')?cleaned:'91'+cleaned;window.open(`https://wa.me/${withCode}?text=Your bill from ${STORE_NAME}. Invoice: ${sale.id}`,'_blank');},800);}}catch(e){console.error(e);}}
 async function promptSendWA(saleId){const sale=salesCache.find(s=>s.id===saleId);if(!sale)return;const ph=prompt('Enter customer WhatsApp number:','');if(ph)await sendWhatsApp(sale,ph);}
 
+// ── STOCK HEALTH ──
+let lowStockTabVal='low';
+function lowStockTab(el,tab){document.querySelectorAll('#page-lowstock .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');lowStockTabVal=tab;renderLowStock();}
+function renderLowStock(){
+  const el=document.getElementById('lowstock-content');if(!el)return;
+  const statsEl=document.getElementById('stockhealth-stats');
+  const now=new Date();
+  const batchQtyMap={};batchesCache.forEach(b=>{if(!batchQtyMap[b.medicine_id])batchQtyMap[b.medicine_id]=0;batchQtyMap[b.medicine_id]+=(b.qty||0);});
+  const getQty=m=>batchQtyMap[m.id]!==undefined?batchQtyMap[m.id]:(m.qty||0);
+  const low=medsCache.filter(m=>getQty(m)<=(m.low||10));
+  const expiring30=medsCache.filter(m=>{if(!m.expiry||getQty(m)<=0)return false;const d=(new Date(m.expiry+'-01')-now)/864e5;return d<=30&&d>0;});
+  const expiring60=medsCache.filter(m=>{if(!m.expiry||getQty(m)<=0)return false;const d=(new Date(m.expiry+'-01')-now)/864e5;return d<=60&&d>30;});
+  const expired=medsCache.filter(m=>{if(!m.expiry||getQty(m)<=0)return false;return new Date(m.expiry+'-01')<now;});
+  const totalCost=medsCache.reduce((a,m)=>a+(m.cost||0)*getQty(m),0);
+  const totalRetail=medsCache.reduce((a,m)=>a+(m.mrp||0)*getQty(m),0);
+  if(statsEl)statsEl.innerHTML=`
+    <div class="stat-card"><div class="stat-icon red">⚠️</div><div class="stat-label">Low Stock</div><div class="stat-value red">${low.length}</div><div class="stat-sub">items</div></div>
+    <div class="stat-card"><div class="stat-icon yellow">🗓</div><div class="stat-label">Expiring Soon</div><div class="stat-value yellow">${expiring30.length+expiring60.length}</div><div class="stat-sub">in 60 days</div></div>
+    <div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-label">Stock Cost</div><div class="stat-value green">${fmtN(totalCost)}</div><div class="stat-sub">cost price</div></div>
+    <div class="stat-card"><div class="stat-icon blue">🏷️</div><div class="stat-label">Retail Value</div><div class="stat-value blue">${fmtN(totalRetail)}</div><div class="stat-sub">at MRP</div></div>`;
+  if(lowStockTabVal==='low'){
+    el.innerHTML=low.length?low.sort((a,b)=>getQty(a)-getQty(b)).map(m=>`
+      <div class="med-item">
+        <div class="med-avatar" style="background:${getQty(m)===0?'var(--grad-red)':'var(--grad-yellow)'}">${getQty(m)===0?'❌':'⚠️'}</div>
+        <div class="med-info"><div class="med-name">${m.name}</div><div class="med-meta">${m.mfr||'Unknown'} · ${m.pack||m.cat}</div></div>
+        <div style="text-align:right;"><div class="badge ${getQty(m)===0?'badge-red':'badge-yellow'}">${getQty(m)} left</div><div style="font-size:11px;color:var(--text2);margin-top:4px;">Min: ${m.low||10}</div><button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="nav('purchase',null)">+ Reorder</button></div>
+      </div>`).join(''):`<div class="empty-state"><div class="empty-icon">✅</div><p>All stock levels good!</p></div>`;
+  }else if(lowStockTabVal==='expiring'){
+    const soon=[...expiring30,...expiring60].sort((a,b)=>a.expiry.localeCompare(b.expiry));
+    el.innerHTML=soon.length?soon.map(m=>{const days=Math.floor((new Date(m.expiry+'-01')-now)/864e5);const color=days<=30?'badge-red':days<=60?'badge-yellow':'badge-blue';return`<div class="med-item"><div class="med-avatar" style="background:${days<=30?'var(--grad-red)':days<=60?'var(--grad-yellow)':'var(--grad-blue)'}">🗓</div><div class="med-info"><div class="med-name">${m.name}</div><div class="med-meta">${m.mfr||''} · Batch: ${m.batch||'—'}</div><div class="med-badges"><span class="badge ${color}">${days} days left</span><span class="badge badge-purple">${getQty(m)} in stock</span></div></div><div style="text-align:right;font-weight:800;font-size:13px;">Exp: ${m.expiry}</div></div>`;}).join(''):`<div class="empty-state"><div class="empty-icon">✅</div><p>No medicines expiring soon!</p></div>`;
+  }else if(lowStockTabVal==='expired'){
+    el.innerHTML=expired.length?expired.map(m=>`<div class="med-item"><div class="med-avatar" style="background:var(--grad-red)">☠️</div><div class="med-info"><div class="med-name">${m.name}</div><div class="med-meta">Batch: ${m.batch||'—'} · ${getQty(m)} units</div><div class="med-badges"><span class="badge badge-red">Expired ${m.expiry}</span></div></div><button class="btn btn-danger btn-sm" onclick="deleteMed('${m.id}')">Remove</button></div>`).join(''):`<div class="empty-state"><div class="empty-icon">✅</div><p>No expired medicines!</p></div>`;
+  }else{
+    const byVal=[...medsCache].sort((a,b)=>(b.mrp||0)*getQty(b)-(a.mrp||0)*getQty(a));
+    el.innerHTML=`<div class="section-card" style="margin-bottom:12px;"><div class="report-row"><span>Total Medicines</span><span style="font-weight:900;">${medsCache.length} items</span></div><div class="report-row"><span>Stock Cost Value</span><span style="font-weight:900;color:var(--g1);">₹${totalCost.toFixed(2)}</span></div><div class="report-row"><span>Retail Value</span><span style="font-weight:900;color:var(--p1);">₹${totalRetail.toFixed(2)}</span></div><div class="report-row total"><span>Potential Profit</span><span>₹${(totalRetail-totalCost).toFixed(2)}</span></div></div><div class="section-card">${byVal.slice(0,10).map(m=>`<div class="alert-row"><div><div style="font-size:13px;font-weight:800;">${m.name}</div><div style="font-size:11px;color:var(--text2);">${getQty(m)} units × ₹${m.mrp}</div></div><div style="font-weight:900;color:var(--p1);">₹${((m.mrp||0)*getQty(m)).toFixed(0)}</div></div>`).join('')}</div>`;
+  }
+}
+
+// ── DAILY REPORT ──
+function renderReport(){
+  const el=document.getElementById('report-content');if(!el)return;
+  const dateVal=document.getElementById('report-date')?.value||new Date().toISOString().split('T')[0];
+  const daySales=salesCache.filter(s=>s.date&&s.date.startsWith(dateVal));
+  const cash=daySales.filter(s=>s.payment_mode==='cash').reduce((a,s)=>a+(s.total||0),0);
+  const upi=daySales.filter(s=>s.payment_mode==='upi').reduce((a,s)=>a+(s.total||0),0);
+  const credit=daySales.filter(s=>s.payment_mode==='credit').reduce((a,s)=>a+(s.total||0),0);
+  const total=cash+upi+credit;
+  const profit=daySales.filter(s=>s.payment_mode!=='credit').reduce((a,s)=>a+(s.profit||0),0);
+  el.innerHTML=`<div class="section-card">
+    <div class="report-row"><span>Cash Sales</span><span style="color:var(--g1);font-weight:900;">₹${cash.toFixed(2)}</span></div>
+    <div class="report-row"><span>UPI Sales</span><span style="color:var(--b1);font-weight:900;">₹${upi.toFixed(2)}</span></div>
+    <div class="report-row"><span>Credit Sales</span><span style="color:var(--o1);font-weight:900;">₹${credit.toFixed(2)}</span></div>
+    <div class="report-row total"><span>Total Sales</span><span>₹${total.toFixed(2)}</span></div>
+    <div class="report-row"><span>Profit (collected)</span><span style="color:var(--g1);font-weight:900;">₹${profit.toFixed(2)}</span></div>
+  </div>
+  <div class="section-card" style="margin-top:12px;">
+    ${daySales.map(s=>`<div class="alert-row"><div><div style="font-size:13px;font-weight:800;">${s.customer||'Walk-in'}</div><div style="font-size:11px;color:var(--text2);">${new Date(s.date).toLocaleTimeString('en-IN')} · ${(s.items||[]).length} items · ${s.payment_mode}</div></div><span style="font-weight:900;">₹${(s.total||0).toFixed(2)}</span></div>`).join('')||'<p style="color:var(--text2);text-align:center;">No sales on this date</p>'}
+  </div>`;
+}
+
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function fmtN(n){return n>=100000?'\u20b9'+(n/100000).toFixed(1)+'L':n>=1000?(n/1000).toFixed(1)+'k':n.toFixed(0);}
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
