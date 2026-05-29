@@ -368,6 +368,7 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     <div class="snav" onclick="nav('payments',this)"><div class="snav-icon">💰</div>Payments</div>
     <div class="snav" onclick="nav('credit',this)"><div class="snav-icon">👤</div>Credit Customers</div>
     <div class="snav" onclick="nav('report',this)"><div class="snav-icon">📋</div>Daily Report</div>
+    <div class="snav" onclick="nav('profitreport',this)"><div class="snav-icon">📊</div>Profit Report</div>
     <div class="snav" onclick="nav('analytics',this)"><div class="snav-icon">📈</div>Analytics</div>
     <div class="snav" onclick="nav('cashdrawer',this)"><div class="snav-icon">💵</div>Cash Drawer</div>
     <div class="sidebar-section">People</div>
@@ -635,11 +636,24 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   </div>
 
   <!-- Tabs -->
-  <div class="tabs" style="margin-bottom:14px;">
+  <div class="tabs" style="margin-bottom:14px;overflow-x:auto;">
     <div class="tab active" onclick="setDistPayTab(this,'all')">All</div>
+    <div class="tab" onclick="setDistPayTab(this,'upcoming')">📅 Upcoming</div>
     <div class="tab" onclick="setDistPayTab(this,'cheque')">🧾 Cheques</div>
     <div class="tab" onclick="setDistPayTab(this,'cash')">💵 Cash/UPI</div>
     <div class="tab" onclick="setDistPayTab(this,'pending')">⏳ Pending</div>
+    <div class="tab" onclick="setDistPayTab(this,'history')">📋 History</div>
+  </div>
+
+  <!-- Date filter (shown for history tab) -->
+  <div id="dp-date-filter" style="display:none;margin-bottom:12px;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input type="date" id="dp-filter-date" style="padding:8px 12px;border-radius:30px;border:1.5px solid var(--border);font-family:Nunito,sans-serif;font-size:13px;font-weight:700;" onchange="renderDistPay()"/>
+      <button class="tab active" onclick="setDPDateRange('today',this)">Today</button>
+      <button class="tab" onclick="setDPDateRange('week',this)">This Week</button>
+      <button class="tab" onclick="setDPDateRange('month',this)">This Month</button>
+      <button class="tab" onclick="setDPDateRange('all',this)">All Time</button>
+    </div>
   </div>
 
   <div style="display:flex;gap:8px;margin-bottom:14px;">
@@ -647,6 +661,30 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     <button class="btn btn-ghost" onclick="openSetOpeningBalance()" style="flex:1;">📊 Set Balance</button>
   </div>
   <div id="distpay-list"></div>
+</div>
+
+<!-- PROFIT REPORT -->
+<div id="page-profitreport" class="page">
+  <div class="page-header"><h1>Profit & Loss 📊</h1><p>Your real earnings after all expenses</p></div>
+
+  <!-- Period selector -->
+  <div style="display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;align-items:center;">
+    <button class="tab active" id="pr-week" onclick="setPRPeriod('week',this)">This Week</button>
+    <button class="tab" id="pr-month" onclick="setPRPeriod('month',this)">This Month</button>
+    <button class="tab" id="pr-quarter" onclick="setPRPeriod('quarter',this)">Quarter</button>
+    <button class="tab" id="pr-year" onclick="setPRPeriod('year',this)">This Year</button>
+    <button class="tab" id="pr-custom" onclick="setPRPeriod('custom',this)">Custom</button>
+  </div>
+
+  <!-- Custom date range -->
+  <div id="pr-custom-range" style="display:none;margin-bottom:14px;">
+    <div class="form-row">
+      <div class="form-group"><label>From</label><input type="date" id="pr-from" onchange="renderProfitReport()"/></div>
+      <div class="form-group"><label>To</label><input type="date" id="pr-to" onchange="renderProfitReport()"/></div>
+    </div>
+  </div>
+
+  <div id="profitreport-content"></div>
 </div>
 
 <!-- SUPPLIERS -->
@@ -683,6 +721,9 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     </div>
     <div onclick="nav('report',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
       <span style="font-size:24px;">📋</span><span style="font-size:11px;font-weight:800;">Report</span>
+    </div>
+    <div onclick="nav('profitreport',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">📊</span><span style="font-size:11px;font-weight:800;">P&L Report</span>
     </div>
     <div onclick="nav('cashdrawer',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
       <span style="font-size:24px;">💵</span><span style="font-size:11px;font-weight:800;">Cash Drawer</span>
@@ -766,11 +807,19 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   </div>
   <div class="form-row">
     <div class="form-group"><label>Manufacturer</label><input id="m-mfr" placeholder="Cipla"/></div>
-    <div class="form-group"><label>Batch No.</label><input id="m-batch"/></div>
+    
   </div>
   <div class="form-row">
     <div class="form-group"><label>Expiry (MM/YYYY)</label><input type="month" id="m-expiry"/></div>
     <div class="form-group"><label>Pack Info</label><input id="m-pack" placeholder="10 tabs/strip"/></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Drawer / Location</label><input id="m-drawer" placeholder="e.g. Drawer A3, Shelf 2, Counter"/></div>
+    <div class="form-group"><label>Batch No</label><input id="m-batch" placeholder="e.g. B2024"/></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Batch No</label><input id="m-batch" placeholder="e.g. A1234"/></div>
+    <div class="form-group"><label>Drawer / Location</label><input id="m-drawer" placeholder="e.g. A3, Shelf 2, Counter"/></div>
   </div>
   <div class="form-row">
     <div class="form-group">
@@ -1487,7 +1536,7 @@ function updateLowStockBadge(){
 }
 
 // ── NAV ──
-const titles={dashboard:'Dashboard',cashdrawer:'Cash Drawer',distpay:'Distributor Payments',sales:'New Sale',returns:'Returns',history:'History',stock:'Stock',lowstock:'Stock Health',purchase:'Stock Purchase',barcodes:'Barcodes',payments:'Payments',credit:'Credit',report:'Daily Report',analytics:'Analytics',distributors:'Distributors',suppliers:'Suppliers'};
+const titles={dashboard:'Dashboard',cashdrawer:'Cash Drawer',distpay:'Distributor Payments',profitreport:'Profit & Loss Report',sales:'New Sale',returns:'Returns',history:'History',stock:'Stock',lowstock:'Stock Health',purchase:'Stock Purchase',barcodes:'Barcodes',payments:'Payments',credit:'Credit',report:'Daily Report',analytics:'Analytics',distributors:'Distributors',suppliers:'Suppliers'};
 function nav(page,el){
   try{
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1498,7 +1547,7 @@ function nav(page,el){
     console.log('Navigating to:', page, 'Element:', pageEl, 'Display:', window.getComputedStyle(pageEl).display);
     if(el)el.classList.add('active');
     document.getElementById('mob-page-title').textContent=titles[page]||'';
-    const fns={dashboard:renderDashboard,cashdrawer:renderCashDrawer,distpay:()=>{populateDistPaySelect();renderDistPay();},stock:renderStock,lowstock:renderLowStock,history:renderHistory,returns:renderReturns,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();populateDistPaySelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
+    const fns={dashboard:renderDashboard,cashdrawer:renderCashDrawer,distpay:()=>{populateDistPaySelect();renderDistPay();},profitreport:renderProfitReport,stock:renderStock,lowstock:renderLowStock,history:renderHistory,returns:renderReturns,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();populateDistPaySelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
     fns[page]?.();
   }catch(e){console.error('Nav error:',e);toast('Error loading page: '+e.message,'error');}
 }
@@ -1629,7 +1678,7 @@ function renderStock(){
       <div class="med-avatar" style="background:${grads[i%6]}">${icons[m.cat]||'💊'}</div>
       <div class="med-info">
         <div class="med-name">${m.name}${isSubstitute?' <span style="font-size:10px;background:rgba(6,214,160,.15);color:#059669;padding:1px 7px;border-radius:8px;font-weight:800;">Alt</span>':''}</div>
-        <div class="med-meta">${m.mfr||'Unknown'} · ${m.pack||m.cat}${m.distributor_name?' · 🚚 '+m.distributor_name:''}</div>
+        <div class="med-meta">${m.mfr||'Unknown'} · ${m.pack||m.cat}${m.distributor_name?' · 🚚 '+m.distributor_name:''}${m.drawer?' · 📦 '+m.drawer:''}</div>
         ${m.composition?`<div class="med-meta" style="color:var(--b1);">💊 ${m.composition}</div>`:''}
         ${nextBatch?`<div class="med-meta">📦 Batch: ${nextBatch.batch_no||'—'} · Exp: ${nextBatch.expiry||'—'} · Cost: ₹${(nextBatch.cost||0).toFixed(2)} · MRP: ₹${nextBatch.mrp||0}</div>`:'<div class="med-meta" style="color:var(--text2);">No batch info</div>'}
         ${batches.length>1?`<div class="med-meta" style="color:var(--b1);">📋 ${batches.length} batches in stock</div>`:''}
@@ -1688,7 +1737,7 @@ function showBatches(medId){
   document.body.appendChild(modal);
 }
 
-function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack','m-composition','m-cash-disc','m-cash-disc-amt','m-scheme-custom'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-scheme').value='';const ew=document.getElementById('m-effective-cost-wrap');if(ew)ew.style.display='none';const si=document.getElementById('m-scheme-info');if(si)si.textContent='';document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';document.getElementById('m-gst').value='0';document.getElementById('m-gst-amt').value='';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
+function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack','m-composition','m-cash-disc','m-cash-disc-amt','m-scheme-custom','m-drawer'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-scheme').value='';const ew=document.getElementById('m-effective-cost-wrap');if(ew)ew.style.display='none';const si=document.getElementById('m-scheme-info');if(si)si.textContent='';document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';document.getElementById('m-gst').value='0';document.getElementById('m-gst-amt').value='';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
 function calcGstAmt(){
   const cost=parseFloat(document.getElementById('m-cost').value)||0;
   const mrp=parseFloat(document.getElementById('m-mrp').value)||0;
@@ -1828,7 +1877,7 @@ document.addEventListener('click', e=>{
 });
 
 function populateMedDistSelect(){const sel=document.getElementById('m-distributor');sel.innerHTML='<option value="">-- Select Distributor (optional) --</option>'+distributorsCache.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');}
-function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';document.getElementById('m-composition').value=m.composition||'';document.getElementById('m-cash-disc').value=m.cash_disc||'';document.getElementById('m-cash-disc-amt').value=m.cash_disc_amt||'';document.getElementById('m-scheme').value=m.scheme||'';document.getElementById('m-scheme-custom').value=m.scheme_custom||'';onSchemeChange();document.getElementById('m-gst').value=m.gst||'0';populateMedDistSelect();document.getElementById('m-distributor').value=m.distributor_id||'';calcGstAmt();document.getElementById('med-modal').classList.add('open');}
+function openEditMed(id){editMedId=id;const m=medsCache.find(x=>x.id===id);if(!m)return;document.getElementById('med-modal-title').textContent='Edit Medicine';document.getElementById('m-name').value=m.name||'';document.getElementById('m-barcode').value=m.barcode||'';document.getElementById('m-mfr').value=m.mfr||'';document.getElementById('m-cat').value=m.cat||'Tablets';document.getElementById('m-mrp').value=m.mrp||'';document.getElementById('m-cost').value=m.cost||'';document.getElementById('m-qty').value=m.qty||'';document.getElementById('m-low').value=m.low||10;document.getElementById('m-batch').value=m.batch||'';document.getElementById('m-expiry').value=m.expiry||'';document.getElementById('m-pack').value=m.pack||'';document.getElementById('m-composition').value=m.composition||'';document.getElementById('m-drawer').value=m.drawer||'';document.getElementById('m-drawer').value=m.drawer||'';document.getElementById('m-cash-disc').value=m.cash_disc||'';document.getElementById('m-cash-disc-amt').value=m.cash_disc_amt||'';document.getElementById('m-scheme').value=m.scheme||'';document.getElementById('m-scheme-custom').value=m.scheme_custom||'';onSchemeChange();document.getElementById('m-gst').value=m.gst||'0';populateMedDistSelect();document.getElementById('m-distributor').value=m.distributor_id||'';calcGstAmt();document.getElementById('med-modal').classList.add('open');}
 async function saveMed(){
   const name=document.getElementById('m-name').value.trim();
   if(!name)return toast('Enter medicine name','error');
@@ -1876,7 +1925,8 @@ async function saveMed(){
     pack:document.getElementById('m-pack').value.trim(),
     composition:document.getElementById('m-composition').value.trim(),
     distributor_id:distId,
-    distributor_name:distName
+    distributor_name:distName,
+    drawer:document.getElementById('m-drawer').value.trim()
   };
 
   // Upsert medicine master
@@ -1902,12 +1952,14 @@ async function saveMed(){
         medicine_id:med.id,
         medicine_name:name,
         batch_no:batchNo||'B'+Date.now().toString().slice(-6),
+        drawer:document.getElementById('m-drawer').value.trim(),
         expiry,mrp,
         cost:costPerUnit,
         raw_cost:rawCost,
         gst:gstRate,gst_amt:gstAmt,cash_disc:cashDiscPct,
         scheme:schemeVal,scheme_label:parsed?parsed.label:'',
         qty:finalQty,
+        drawer:document.getElementById('m-drawer')?.value.trim()||'',
         purchase_date:new Date().toISOString()
       });
     }
@@ -2951,8 +3003,26 @@ async function loadDistPayments(){
 }
 
 function setDistPayTab(el,tab){
-  document.querySelectorAll('#page-distpay .tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active'); distPayTab=tab; renderDistPay();
+  document.querySelectorAll('#page-distpay .tabs .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); distPayTab=tab;
+  // Show/hide date filter
+  const df=document.getElementById('dp-date-filter');
+  if(df) df.style.display=(tab==='history')?'block':'none';
+  // Set default date range for history
+  if(tab==='history'){
+    const today=new Date().toISOString().split('T')[0];
+    const dp=document.getElementById('dp-filter-date');
+    if(dp&&!dp.value) dp.value=today;
+  }
+  renderDistPay();
+}
+let dpDateRange='month';
+function setDPDateRange(range,el){
+  dpDateRange=range;
+  document.querySelectorAll('#dp-date-filter .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('dp-filter-date').value='';
+  renderDistPay();
 }
 
 function setDPType(type,el){
@@ -2969,11 +3039,34 @@ function renderDistPay(){
 
   const selDist=document.getElementById('distpay-select')?.value||'';
   let payments=selDist?distPaymentsCache.filter(p=>p.distributor_id===selDist):distPaymentsCache;
+  const now=new Date();
+  const today=new Date();today.setHours(0,0,0,0);
+  const tomorrow=new Date(today);tomorrow.setDate(tomorrow.getDate()+1);
+  const in7Days=new Date(today);in7Days.setDate(in7Days.getDate()+7);
 
   // Filter by tab
   if(distPayTab==='cheque') payments=payments.filter(p=>p.type==='cheque');
   else if(distPayTab==='cash') payments=payments.filter(p=>p.type==='cash'||p.type==='upi');
   else if(distPayTab==='pending') payments=payments.filter(p=>p.type==='cheque'&&p.cheque_status==='pending');
+  else if(distPayTab==='upcoming'){
+    // Show pending cheques sorted by cheque date
+    payments=payments.filter(p=>p.type==='cheque'&&p.cheque_status==='pending'&&p.cheque_date)
+      .sort((a,b)=>a.cheque_date.localeCompare(b.cheque_date));
+  } else if(distPayTab==='history'){
+    // Filter by date range or specific date
+    const dateVal=document.getElementById('dp-filter-date')?.value;
+    if(dateVal){
+      payments=payments.filter(p=>(p.cheque_date||p.date||'').startsWith(dateVal));
+    } else {
+      const wkAgo=new Date();wkAgo.setDate(wkAgo.getDate()-7);
+      const moStart=new Date();moStart.setDate(1);moStart.setHours(0,0,0,0);
+      if(dpDateRange==='today') payments=payments.filter(p=>new Date(p.created_at||p.date)>=today);
+      else if(dpDateRange==='week') payments=payments.filter(p=>new Date(p.created_at||p.date)>=wkAgo);
+      else if(dpDateRange==='month') payments=payments.filter(p=>new Date(p.created_at||p.date)>=moStart);
+      // 'all' = no filter
+    }
+    payments=payments.sort((a,b)=>new Date(b.created_at||b.date)-new Date(a.created_at||a.date));
+  }
 
   // Stats
   const allPayments=selDist?distPaymentsCache.filter(p=>p.distributor_id===selDist):distPaymentsCache;
@@ -2991,6 +3084,83 @@ function renderDistPay(){
     <div class="stat-card"><div class="stat-icon yellow">⏳</div><div class="stat-label">Pending Cheques</div><div class="stat-value yellow">₹${fmtN(totalPending)}</div><div class="stat-sub">not cleared yet</div></div>
     <div class="stat-card"><div class="stat-icon red">❌</div><div class="stat-label">Bounced</div><div class="stat-value red">₹${fmtN(totalBounced)}</div><div class="stat-sub">+₹${bounceCharges} charges</div></div>`;
 
+  // For upcoming tab — group by date
+  if(distPayTab==='upcoming'){
+    if(!payments.length){
+      listEl.innerHTML=`<div class="empty-state"><div class="empty-icon">📅</div><p>No upcoming cheques</p></div>`;
+    } else {
+      // Group by cheque_date
+      const grouped={};
+      payments.forEach(p=>{const d=p.cheque_date||'No date';if(!grouped[d])grouped[d]=[];grouped[d].push(p);});
+      const todayStr=today.toISOString().split('T')[0];
+      const tomorrowStr=tomorrow.toISOString().split('T')[0];
+      listEl.innerHTML=Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,pList])=>{
+        const totalAmt=pList.reduce((a,p)=>a+(p.amount||0),0);
+        const isPast=date<todayStr;const isToday=date===todayStr;const isTomorrow=date===tomorrowStr;
+        const dateLabel=isToday?'🔴 TODAY':isTomorrow?'🟡 TOMORROW':isPast?'⚠️ OVERDUE':date;
+        const dateColor=isPast||isToday?'#dc2626':isTomorrow?'#d97706':'var(--p1)';
+        return`<div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border-radius:var(--r-sm);margin-bottom:6px;border-left:3px solid ${dateColor};">
+            <span style="font-weight:900;font-size:13px;color:${dateColor};">${dateLabel}</span>
+            <span style="font-weight:900;font-size:15px;color:${dateColor};">Total: ₹${totalAmt.toFixed(2)}</span>
+          </div>
+          ${pList.map(p=>{
+            const dist=distributorsCache.find(d=>d.id===p.distributor_id);
+            return`<div class="med-item" style="margin-bottom:6px;">
+              <div class="med-avatar" style="background:var(--grad-blue);">🧾</div>
+              <div class="med-info">
+                <div class="med-name">${dist?.name||p.distributor_name||'Unknown'}</div>
+                <div class="med-meta">Cheque: ${p.cheque_no||'—'} · Bank: ${p.bank||'—'}</div>
+                ${p.note?`<div class="med-meta">📝 ${p.note}</div>`:''}
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:18px;font-weight:900;color:var(--p1);">₹${(p.amount||0).toFixed(2)}</div>
+                <div class="dot-menu-wrap" style="margin-top:4px;">
+                  <button class="dot-btn" onclick="toggleDotMenu('dp-${p.id}')">⋮</button>
+                  <div class="dot-dropdown" id="dp-${p.id}">
+                    <div class="dot-item" onclick="openChequeStatus('${p.id}');closeDotMenus()">📋 Update Status</div>
+                    <div class="dot-item danger" onclick="deleteDistPayment('${p.id}','${p.distributor_id}',${p.amount||0},'${p.cheque_status||''}','${p.type}');closeDotMenus()">🗑 Delete</div>
+                  </div>
+                </div>
+              </div>
+            </div>`;}).join('')}
+        </div>`;}).join('');
+    }
+  } else if(distPayTab==='history'){
+    // Show as date-wise grouped history
+    if(!payments.length){
+      listEl.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><p>No payments found for this period</p></div>`;
+    } else {
+      const grouped={};
+      payments.forEach(p=>{
+        const d=new Date(p.created_at||p.date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+        if(!grouped[d])grouped[d]=[];grouped[d].push(p);
+      });
+      listEl.innerHTML=Object.entries(grouped).map(([date,pList])=>{
+        const totalAmt=pList.reduce((a,p)=>a+(p.amount||0),0);
+        return`<div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border-radius:var(--r-sm);margin-bottom:6px;">
+            <span style="font-weight:900;font-size:13px;">📅 ${date}</span>
+            <span style="font-weight:900;color:var(--p1);">₹${totalAmt.toFixed(2)}</span>
+          </div>
+          ${pList.map(p=>{
+            const dist=distributorsCache.find(d=>d.id===p.distributor_id);
+            const isCheque=p.type==='cheque';
+            const statusColor=p.cheque_status==='cleared'?'badge-green':p.cheque_status==='bounced'?'badge-red':'badge-yellow';
+            const statusLabel=p.cheque_status==='cleared'?'✅ Cleared':p.cheque_status==='bounced'?'❌ Bounced':'⏳ Pending';
+            return`<div class="med-item" style="margin-bottom:6px;">
+              <div class="med-avatar" style="background:${isCheque?'var(--grad-blue)':p.type==='upi'?'var(--grad-purple)':'var(--grad-green)'}">${isCheque?'🧾':p.type==='upi'?'📱':'💵'}</div>
+              <div class="med-info">
+                <div class="med-name">₹${(p.amount||0).toFixed(2)} → ${dist?.name||p.distributor_name||'Unknown'}</div>
+                <div class="med-meta">${p.type.toUpperCase()}${isCheque?' · Cheque: '+(p.cheque_no||'—')+' · '+(p.bank||'—'):''}</div>
+                ${isCheque&&p.cheque_date?`<div class="med-meta">Cheque Date: ${p.cheque_date}</div>`:''}
+                ${p.note?`<div class="med-meta">📝 ${p.note}</div>`:''}
+                <div class="med-badges"><span class="badge ${isCheque?statusColor:'badge-green'}">${isCheque?statusLabel:'✅ Paid'}</span></div>
+              </div>
+            </div>`;}).join('')}
+        </div>`;}).join('');
+    }
+  } else {
   listEl.innerHTML=payments.length?payments.map(p=>{
     const dist=distributorsCache.find(d=>d.id===p.distributor_id);
     const distName=dist?.name||p.distributor_name||'Unknown';
@@ -3019,6 +3189,7 @@ function renderDistPay(){
       </div>
     </div>`;
   }).join(''):`<div class="empty-state"><div class="empty-icon">💳</div><p>No payments recorded</p></div>`;
+  } // end else
 }
 
 function loadDistPayHistory(){renderDistPay();}
@@ -3165,6 +3336,141 @@ async function saveOpeningBalance(){
   setSynced();closeModal('opening-bal-modal');
   toast('Opening balance set to ₹'+amount.toFixed(2)+' ✓');
   await loadDistributo();await loadDistPayments();
+}
+
+
+// ── PROFIT & LOSS REPORT ──
+let prPeriod = 'month';
+
+function setPRPeriod(period, el){
+  prPeriod = period;
+  document.querySelectorAll('#page-profitreport .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const cr = document.getElementById('pr-custom-range');
+  if(cr) cr.style.display = period==='custom' ? 'block' : 'none';
+  if(period !== 'custom') renderProfitReport();
+}
+
+function getPRDateRange(){
+  const now = new Date();
+  let from, to = new Date();
+  if(prPeriod==='week'){
+    from = new Date(); from.setDate(from.getDate()-7);
+  } else if(prPeriod==='month'){
+    from = new Date(); from.setDate(1); from.setHours(0,0,0,0);
+  } else if(prPeriod==='quarter'){
+    from = new Date(); from.setMonth(Math.floor(from.getMonth()/3)*3); from.setDate(1); from.setHours(0,0,0,0);
+  } else if(prPeriod==='year'){
+    from = new Date(); from.setMonth(0); from.setDate(1); from.setHours(0,0,0,0);
+  } else if(prPeriod==='custom'){
+    const f = document.getElementById('pr-from')?.value;
+    const t2 = document.getElementById('pr-to')?.value;
+    if(!f||!t2) return null;
+    from = new Date(f); to = new Date(t2); to.setHours(23,59,59,999);
+  }
+  return {from, to};
+}
+
+function renderProfitReport(){
+  const el = document.getElementById('profitreport-content');
+  if(!el) return;
+
+  const range = getPRDateRange();
+  if(!range){ el.innerHTML='<p style="color:var(--text2);text-align:center;padding:20px;">Select a date range</p>'; return; }
+  const {from, to} = range;
+
+  // ── REVENUE (collected cash+upi+collections) ──
+  const periodSales = salesCache.filter(s=>{const d=new Date(s.date);return d>=from&&d<=to;});
+  const cashRev = periodSales.filter(s=>s.payment_mode==='cash'&&!s.is_credit_collection).reduce((a,s)=>a+(s.total||0),0);
+  const upiRev = periodSales.filter(s=>s.payment_mode==='upi'&&!s.is_credit_collection).reduce((a,s)=>a+(s.total||0),0);
+  const creditCollected = periodSales.filter(s=>s.is_credit_collection).reduce((a,s)=>a+(s.total||0),0);
+  const creditGiven = periodSales.filter(s=>s.payment_mode==='credit').reduce((a,s)=>a+(s.total||0),0);
+  const totalRevenue = cashRev + upiRev + creditCollected;
+  const grossProfit = periodSales.filter(s=>s.payment_mode!=='credit').reduce((a,s)=>a+(s.profit||0),0);
+
+  // ── EXPENSES ──
+  // 1. Distributor payments (cleared only)
+  const distPaid = distPaymentsCache.filter(p=>{
+    const d=new Date(p.created_at||p.date);
+    return d>=from&&d<=to&&(p.cheque_status==='cleared'||p.type==='cash'||p.type==='upi');
+  }).reduce((a,p)=>a+(p.amount||0),0);
+
+  // 2. Bounce charges
+  const bounceCharges = distPaymentsCache.filter(p=>{
+    const d=new Date(p.created_at||p.date);
+    return d>=from&&d<=to&&p.cheque_status==='bounced';
+  }).length * 1200;
+
+  // 3. Withdrawals
+  const periodWD = withdrawalsCache.filter(w=>{const d=new Date(w.date);return d>=from&&d<=to;});
+  const totalWithdrawn = periodWD.reduce((a,w)=>a+(w.amount||0),0);
+
+  // ── NET PROFIT ──
+  const totalExpenses = distPaid + bounceCharges + totalWithdrawn;
+  const netProfit = totalRevenue - totalExpenses;
+  const netAfterCredit = netProfit; // credit given doesn't affect this
+
+  // Period label
+  const periodLabels = {week:'This Week',month:'This Month',quarter:'This Quarter',year:'This Year',custom:'Custom Period'};
+
+  el.innerHTML = `
+    <!-- HEADER CARD -->
+    <div style="background:linear-gradient(135deg,${netProfit>=0?'#059669,#34d399':'#dc2626,#f87171'});border-radius:20px;padding:20px;color:white;margin-bottom:16px;text-align:center;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;opacity:.8;margin-bottom:6px;">${periodLabels[prPeriod]||'Period'} · Net Profit</div>
+      <div style="font-size:36px;font-weight:900;">₹${fmtN(Math.abs(netProfit))}</div>
+      <div style="font-size:13px;opacity:.9;margin-top:4px;">${netProfit>=0?'✅ In Profit':'⚠️ In Loss'}</div>
+    </div>
+
+    <!-- INCOME SECTION -->
+    <div class="section-card" style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:900;color:var(--g1);margin-bottom:12px;border-bottom:2px solid rgba(5,150,105,.15);padding-bottom:8px;">💰 Income</div>
+      <div class="report-row"><span>💵 Cash Sales</span><span style="color:var(--g1);font-weight:800;">+₹${cashRev.toFixed(2)}</span></div>
+      <div class="report-row"><span>📱 UPI Sales</span><span style="color:var(--b1);font-weight:800;">+₹${upiRev.toFixed(2)}</span></div>
+      ${creditCollected>0?`<div class="report-row"><span>✅ Credit Collected</span><span style="color:var(--g1);font-weight:800;">+₹${creditCollected.toFixed(2)}</span></div>`:''}
+      <div class="report-row total" style="margin-top:8px;"><span>Total Revenue</span><span>₹${totalRevenue.toFixed(2)}</span></div>
+      ${creditGiven>0?`<div class="report-row" style="color:var(--text2);font-size:12px;"><span>📒 Credit Given (not yet received)</span><span>₹${creditGiven.toFixed(2)}</span></div>`:''}
+    </div>
+
+    <!-- GROSS PROFIT -->
+    <div class="section-card" style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:900;color:var(--b1);margin-bottom:12px;border-bottom:2px solid rgba(59,130,246,.15);padding-bottom:8px;">📈 Gross Profit (after cost of goods)</div>
+      <div class="report-row"><span>Revenue</span><span>₹${totalRevenue.toFixed(2)}</span></div>
+      <div class="report-row total"><span>Gross Profit</span><span style="color:var(--g1);">₹${grossProfit.toFixed(2)}</span></div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Margin: ${totalRevenue>0?((grossProfit/totalRevenue)*100).toFixed(1):0}%</div>
+    </div>
+
+    <!-- EXPENSES SECTION -->
+    <div class="section-card" style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:900;color:var(--o1);margin-bottom:12px;border-bottom:2px solid rgba(220,38,38,.15);padding-bottom:8px;">💸 Expenses</div>
+      <div class="report-row"><span>💳 Paid to Distributors</span><span style="color:#dc2626;font-weight:800;">-₹${distPaid.toFixed(2)}</span></div>
+      ${bounceCharges>0?`<div class="report-row"><span>❌ Cheque Bounce Charges</span><span style="color:#dc2626;font-weight:800;">-₹${bounceCharges.toFixed(2)}</span></div>`:''}
+      <div class="report-row"><span>💸 Personal Withdrawals</span><span style="color:#dc2626;font-weight:800;">-₹${totalWithdrawn.toFixed(2)}</span></div>
+      <div class="report-row total" style="margin-top:8px;"><span>Total Expenses</span><span style="color:#dc2626;">₹${totalExpenses.toFixed(2)}</span></div>
+    </div>
+
+    <!-- WITHDRAWAL BREAKDOWN -->
+    ${periodWD.length>0?`<div class="section-card" style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:900;color:var(--text2);margin-bottom:10px;">💸 Withdrawal Breakdown</div>
+      ${Object.entries(periodWD.reduce((a,w)=>{if(!a[w.person])a[w.person]=0;a[w.person]+=(w.amount||0);return a;},{})).sort((a,b)=>b[1]-a[1]).map(([name,amt])=>`<div class="report-row"><span>👤 ${name}</span><span style="font-weight:800;">₹${amt.toFixed(2)}</span></div>`).join('')}
+    </div>`:''}
+
+    <!-- DISTRIBUTOR BREAKDOWN -->
+    ${distPaid>0?`<div class="section-card" style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:900;color:var(--text2);margin-bottom:10px;">💳 Payments to Distributors</div>
+      ${Object.entries(distPaymentsCache.filter(p=>{const d=new Date(p.created_at||p.date);return d>=from&&d<=to&&(p.cheque_status==='cleared'||p.type==='cash'||p.type==='upi');}).reduce((a,p)=>{const n=p.distributor_name||'Unknown';if(!a[n])a[n]=0;a[n]+=(p.amount||0);return a;},{})).sort((a,b)=>b[1]-a[1]).map(([name,amt])=>`<div class="report-row"><span>🚚 ${name}</span><span style="font-weight:800;">₹${amt.toFixed(2)}</span></div>`).join('')}
+    </div>`:''}
+
+    <!-- FINAL SUMMARY -->
+    <div style="background:var(--bg);border-radius:16px;padding:16px;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:900;margin-bottom:12px;">🧾 Final Summary</div>
+      <div class="report-row"><span>Total Revenue</span><span style="color:var(--g1);font-weight:800;">+₹${totalRevenue.toFixed(2)}</span></div>
+      <div class="report-row"><span>Distributor Payments</span><span style="color:#dc2626;font-weight:800;">-₹${distPaid.toFixed(2)}</span></div>
+      ${bounceCharges>0?`<div class="report-row"><span>Bounce Charges</span><span style="color:#dc2626;font-weight:800;">-₹${bounceCharges.toFixed(2)}</span></div>`:''}
+      <div class="report-row"><span>Withdrawals</span><span style="color:#dc2626;font-weight:800;">-₹${totalWithdrawn.toFixed(2)}</span></div>
+      <div style="border-top:2px solid var(--border);margin:10px 0;"></div>
+      <div class="report-row" style="font-size:16px;"><span style="font-weight:900;">🏆 Net Profit</span><span style="font-weight:900;font-size:18px;color:${netProfit>=0?'var(--g1)':'#dc2626'};">₹${netProfit.toFixed(2)}</span></div>
+    </div>
+  `;
 }
 
 </script>
