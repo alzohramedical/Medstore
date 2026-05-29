@@ -372,6 +372,7 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     <div class="snav" onclick="nav('cashdrawer',this)"><div class="snav-icon">💵</div>Cash Drawer</div>
     <div class="sidebar-section">People</div>
     <div class="snav" onclick="nav('distributors',this)"><div class="snav-icon">🚚</div>Distributors</div>
+    <div class="snav" onclick="nav('distpay',this)"><div class="snav-icon">💳</div>Dist. Payments</div>
     <div class="snav" onclick="nav('suppliers',this)"><div class="snav-icon">🏭</div>Suppliers</div>
   </div>
 </div>
@@ -618,6 +619,36 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   <div id="cashdrawer-list"></div>
 </div>
 
+<!-- DISTRIBUTOR PAYMENTS -->
+<div id="page-distpay" class="page">
+  <div class="page-header"><h1>Distributor Payments 💳</h1><p>Track what you owe to distributors</p></div>
+
+  <!-- Summary Cards -->
+  <div class="stat-grid" id="distpay-stats" style="margin-bottom:16px;"></div>
+
+  <!-- Distributor selector -->
+  <div class="form-group" style="margin-bottom:14px;">
+    <label>Select Distributor</label>
+    <select id="distpay-select" onchange="loadDistPayHistory()" style="font-size:14px;padding:12px;">
+      <option value="">-- All Distributors --</option>
+    </select>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" style="margin-bottom:14px;">
+    <div class="tab active" onclick="setDistPayTab(this,'all')">All</div>
+    <div class="tab" onclick="setDistPayTab(this,'cheque')">🧾 Cheques</div>
+    <div class="tab" onclick="setDistPayTab(this,'cash')">💵 Cash/UPI</div>
+    <div class="tab" onclick="setDistPayTab(this,'pending')">⏳ Pending</div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <button class="btn btn-primary" onclick="openAddDistPayment()" style="flex:2;">+ Record Payment</button>
+    <button class="btn btn-ghost" onclick="openSetOpeningBalance()" style="flex:1;">📊 Set Balance</button>
+  </div>
+  <div id="distpay-list"></div>
+</div>
+
 <!-- SUPPLIERS -->
 <div id="page-suppliers" class="page">
   <div class="page-header"><h1>Suppliers 🏭</h1><p>Other vendors & suppliers</p></div>
@@ -664,6 +695,9 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     </div>
     <div onclick="nav('distributors',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
       <span style="font-size:24px;">🚚</span><span style="font-size:11px;font-weight:800;">Distributors</span>
+    </div>
+    <div onclick="nav('distpay',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">💳</span><span style="font-size:11px;font-weight:800;">Dist. Pay</span>
     </div>
     <div onclick="nav('returns',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
       <span style="font-size:24px;">↩️</span><span style="font-size:11px;font-weight:800;">Returns</span>
@@ -842,6 +876,75 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeModal('dist-modal')">Cancel</button>
     <button class="btn btn-primary" id="save-dist-btn" onclick="saveDistributor()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Distributor Payment Modal -->
+<div class="modal-bg" id="distpay-modal">
+<div class="modal">
+  <div class="modal-handle"></div>
+  <h2 id="distpay-modal-title">💳 Record Payment</h2>
+  <div class="form-group">
+    <label>Distributor *</label>
+    <select id="dp-distributor" style="font-size:14px;padding:10px;"></select>
+  </div>
+  <div class="form-group">
+    <label>Payment Type</label>
+    <div class="pay-mode-row">
+      <button class="pay-mode-btn active cash" onclick="setDPType('cheque',this)">🧾 Cheque</button>
+      <button class="pay-mode-btn upi" onclick="setDPType('cash',this)">💵 Cash</button>
+      <button class="pay-mode-btn credit" onclick="setDPType('upi',this)">📱 UPI</button>
+    </div>
+  </div>
+  <div class="form-group"><label>Amount (₹) *</label><input type="number" id="dp-amount" inputmode="decimal" placeholder="0.00"/></div>
+  <div id="dp-cheque-fields">
+    <div class="form-row">
+      <div class="form-group"><label>Cheque No *</label><input id="dp-cheque-no" placeholder="e.g. 001234"/></div>
+      <div class="form-group"><label>Bank</label><input id="dp-bank" placeholder="e.g. HDFC, SBI"/></div>
+    </div>
+    <div class="form-group"><label>Cheque Date *</label><input type="date" id="dp-cheque-date"/></div>
+  </div>
+  <div class="form-group"><label>Note (optional)</label><input id="dp-note" placeholder="e.g. Against invoice #123"/></div>
+  <div class="form-group"><label>Payment Date</label><input type="datetime-local" id="dp-date"/></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('distpay-modal')">Cancel</button>
+    <button class="btn btn-primary" id="save-dp-btn" onclick="saveDistPayment()">Save Payment 💳</button>
+  </div>
+</div>
+</div>
+
+<!-- Cheque Status Modal -->
+<div class="modal-bg" id="cheque-status-modal">
+<div class="modal">
+  <div class="modal-handle"></div>
+  <h2>Update Cheque Status</h2>
+  <input type="hidden" id="cs-payment-id"/>
+  <div id="cs-cheque-info" style="background:var(--bg);border-radius:var(--r-sm);padding:12px;margin-bottom:14px;font-size:13px;"></div>
+  <div class="form-group"><label>Status</label>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn" onclick="updateChequeStatus('cleared')" style="background:var(--grad-green);color:white;font-family:Nunito,sans-serif;font-weight:800;border:none;border-radius:var(--r);cursor:pointer;padding:12px;">✅ Cleared — Deduct from balance</button>
+      <button class="btn" onclick="updateChequeStatus('bounced')" style="background:var(--grad-red);color:white;font-family:Nunito,sans-serif;font-weight:800;border:none;border-radius:var(--r);cursor:pointer;padding:12px;">❌ Bounced — Add ₹1200 charge</button>
+      <button class="btn btn-ghost" onclick="updateChequeStatus('pending')">⏳ Still Pending</button>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('cheque-status-modal')">Cancel</button>
+  </div>
+</div>
+</div>
+
+<!-- Opening Balance Modal -->
+<div class="modal-bg" id="opening-bal-modal">
+<div class="modal">
+  <div class="modal-handle"></div>
+  <h2>Set Opening Balance</h2>
+  <div class="form-group"><label>Distributor</label><select id="ob-distributor" style="font-size:14px;padding:10px;"></select></div>
+  <div class="form-group"><label>Amount You Owe (₹)</label><input type="number" id="ob-amount" inputmode="decimal" placeholder="0.00"/></div>
+  <div class="form-group"><label>Note</label><input id="ob-note" placeholder="e.g. Outstanding as of June 2026"/></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('opening-bal-modal')">Cancel</button>
+    <button class="btn btn-primary" onclick="saveOpeningBalance()">Save Balance</button>
   </div>
 </div>
 </div>
@@ -1320,7 +1423,7 @@ function setSyncUI(color,label,pulse){
 // ── INIT ──
 async function init(){
   try{
-    const[m,s,p,su,dist,cc,ct,ret,wdl,bat]=await Promise.all([
+    const[m,s,p,su,dist,cc,ct,ret,wdl,bat,dpay]=await Promise.all([
       db.from('medicines').select('*').order('name'),
       db.from('sales').select('*').order('date',{ascending:false}),
       db.from('payments').select('*').order('created_at',{ascending:false}),
@@ -1331,6 +1434,7 @@ async function init(){
       db.from('returns').select('*').order('date',{ascending:false}),
       db.from('withdrawals').select('*').order('date',{ascending:false}),
       db.from('stock_batches').select('*').order('purchase_date',{ascending:true}),
+      db.from('distributor_payments').select('*').order('created_at',{ascending:false}),
     ]);
     medsCache=m.data||[]; salesCache=s.data||[]; paymentsCache=p.data||[];
     suppliersCache=su.data||[]; distributorsCache=dist.data||[];
@@ -1338,6 +1442,7 @@ async function init(){
     returnsCache=ret.data||[];
     withdrawalsCache=wdl?.data||[];
     batchesCache=bat?.data||[];
+    distPaymentsCache=dpay?.data||[];
     setSynced();
     document.getElementById('loading').style.display='none';
     // set default report date
@@ -1356,6 +1461,11 @@ async function init(){
       .on('postgres_changes',{event:'*',schema:'public',table:'credit_transactions'},()=>loadCreditTx())
       .on('postgres_changes',{event:'*',schema:'public',table:'returns'},()=>loadReturns())
       .on('postgres_changes',{event:'*',schema:'public',table:'withdrawals'},()=>loadWithdrawals())
+      .on('postgres_changes',{event:'*',schema:'public',table:'distributor_payments'},async()=>{
+        const{data}=await db.from('distributor_payments').select('*').order('created_at',{ascending:false});
+        distPaymentsCache=data||[];
+        if(document.getElementById('distpay-list'))renderDistPay();
+      })
       .on('postgres_changes',{event:'*',schema:'public',table:'stock_batches'},async()=>{
         const{data}=await db.from('stock_batches').select('*').order('purchase_date',{ascending:true});
         batchesCache=data||[];renderStock();
@@ -1377,7 +1487,7 @@ function updateLowStockBadge(){
 }
 
 // ── NAV ──
-const titles={dashboard:'Dashboard',cashdrawer:'Cash Drawer',sales:'New Sale',returns:'Returns',history:'History',stock:'Stock',lowstock:'Stock Health',purchase:'Stock Purchase',barcodes:'Barcodes',payments:'Payments',credit:'Credit',report:'Daily Report',analytics:'Analytics',distributors:'Distributors',suppliers:'Suppliers'};
+const titles={dashboard:'Dashboard',cashdrawer:'Cash Drawer',distpay:'Distributor Payments',sales:'New Sale',returns:'Returns',history:'History',stock:'Stock',lowstock:'Stock Health',purchase:'Stock Purchase',barcodes:'Barcodes',payments:'Payments',credit:'Credit',report:'Daily Report',analytics:'Analytics',distributors:'Distributors',suppliers:'Suppliers'};
 function nav(page,el){
   try{
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1388,7 +1498,7 @@ function nav(page,el){
     console.log('Navigating to:', page, 'Element:', pageEl, 'Display:', window.getComputedStyle(pageEl).display);
     if(el)el.classList.add('active');
     document.getElementById('mob-page-title').textContent=titles[page]||'';
-    const fns={dashboard:renderDashboard,cashdrawer:renderCashDrawer,stock:renderStock,lowstock:renderLowStock,history:renderHistory,returns:renderReturns,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
+    const fns={dashboard:renderDashboard,cashdrawer:renderCashDrawer,distpay:()=>{populateDistPaySelect();renderDistPay();},stock:renderStock,lowstock:renderLowStock,history:renderHistory,returns:renderReturns,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();populateDistPaySelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
     fns[page]?.();
   }catch(e){console.error('Nav error:',e);toast('Error loading page: '+e.message,'error');}
 }
@@ -2825,6 +2935,236 @@ async function generatePDF(sale){
   y+=20;doc.setFontSize(8);doc.setFont('helvetica','italic');doc.setTextColor(0,120,0);
   doc.text('Thanks for shopping with us! We look forward to serving you again. 🙏',W/2,y,{align:'center'});
   return doc;
+}
+
+
+// ── DISTRIBUTOR PAYMENTS ──
+let distPaymentsCache = [];
+let distPayTab = 'all';
+let dpType = 'cheque';
+let currentChequePayment = null;
+
+async function loadDistPayments(){
+  const{data}=await db.from('distributor_payments').select('*').order('created_at',{ascending:false});
+  distPaymentsCache=data||[];
+  if(document.getElementById('distpay-list')) renderDistPay();
+}
+
+function setDistPayTab(el,tab){
+  document.querySelectorAll('#page-distpay .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); distPayTab=tab; renderDistPay();
+}
+
+function setDPType(type,el){
+  dpType=type;
+  document.querySelectorAll('#distpay-modal .pay-mode-btn').forEach(b=>b.classList.remove('active','cash','upi','credit'));
+  el.classList.add('active',type==='cheque'?'cash':type==='cash'?'upi':'credit');
+  document.getElementById('dp-cheque-fields').style.display=type==='cheque'?'block':'none';
+}
+
+function renderDistPay(){
+  const statsEl=document.getElementById('distpay-stats');
+  const listEl=document.getElementById('distpay-list');
+  if(!listEl) return;
+
+  const selDist=document.getElementById('distpay-select')?.value||'';
+  let payments=selDist?distPaymentsCache.filter(p=>p.distributor_id===selDist):distPaymentsCache;
+
+  // Filter by tab
+  if(distPayTab==='cheque') payments=payments.filter(p=>p.type==='cheque');
+  else if(distPayTab==='cash') payments=payments.filter(p=>p.type==='cash'||p.type==='upi');
+  else if(distPayTab==='pending') payments=payments.filter(p=>p.type==='cheque'&&p.cheque_status==='pending');
+
+  // Stats
+  const allPayments=selDist?distPaymentsCache.filter(p=>p.distributor_id===selDist):distPaymentsCache;
+  const totalCleared=allPayments.filter(p=>p.cheque_status==='cleared'||p.type!=='cheque').reduce((a,p)=>a+(p.amount||0),0);
+  const totalPending=allPayments.filter(p=>p.type==='cheque'&&p.cheque_status==='pending').reduce((a,p)=>a+(p.amount||0),0);
+  const totalBounced=allPayments.filter(p=>p.cheque_status==='bounced').reduce((a,p)=>a+(p.amount||0),0);
+  const bounceCharges=allPayments.filter(p=>p.cheque_status==='bounced').length*1200;
+
+  // Get distributor balance
+  const distBal=selDist?(distributorsCache.find(d=>d.id===selDist)?.total_credit||0):distributorsCache.reduce((a,d)=>a+(d.total_credit||0),0);
+
+  if(statsEl) statsEl.innerHTML=`
+    <div class="stat-card"><div class="stat-icon red">💰</div><div class="stat-label">You Owe</div><div class="stat-value red">₹${fmtN(distBal)}</div><div class="stat-sub">outstanding</div></div>
+    <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-label">Cleared</div><div class="stat-value green">₹${fmtN(totalCleared)}</div><div class="stat-sub">paid</div></div>
+    <div class="stat-card"><div class="stat-icon yellow">⏳</div><div class="stat-label">Pending Cheques</div><div class="stat-value yellow">₹${fmtN(totalPending)}</div><div class="stat-sub">not cleared yet</div></div>
+    <div class="stat-card"><div class="stat-icon red">❌</div><div class="stat-label">Bounced</div><div class="stat-value red">₹${fmtN(totalBounced)}</div><div class="stat-sub">+₹${bounceCharges} charges</div></div>`;
+
+  listEl.innerHTML=payments.length?payments.map(p=>{
+    const dist=distributorsCache.find(d=>d.id===p.distributor_id);
+    const distName=dist?.name||p.distributor_name||'Unknown';
+    const isCheque=p.type==='cheque';
+    const statusColor=p.cheque_status==='cleared'?'badge-green':p.cheque_status==='bounced'?'badge-red':'badge-yellow';
+    const statusLabel=p.cheque_status==='cleared'?'✅ Cleared':p.cheque_status==='bounced'?'❌ Bounced':'⏳ Pending';
+    return`<div class="med-item">
+      <div class="med-avatar" style="background:${isCheque?'var(--grad-blue)':p.type==='upi'?'var(--grad-purple)':'var(--grad-green)'}">
+        ${isCheque?'🧾':p.type==='upi'?'📱':'💵'}
+      </div>
+      <div class="med-info">
+        <div class="med-name">₹${(p.amount||0).toFixed(2)} → ${distName}</div>
+        <div class="med-meta">${new Date(p.created_at||p.date).toLocaleDateString('en-IN')} · ${p.type.toUpperCase()}</div>
+        ${isCheque?`<div class="med-meta">Cheque: ${p.cheque_no||'—'} · ${p.bank||'—'} · Date: ${p.cheque_date||'—'}</div>`:''}
+        ${p.note?`<div class="med-meta">📝 ${p.note}</div>`:''}
+        <div class="med-badges">
+          ${isCheque?`<span class="badge ${statusColor}">${statusLabel}</span>`:`<span class="badge badge-green">✅ Paid</span>`}
+        </div>
+      </div>
+      <div class="dot-menu-wrap">
+        <button class="dot-btn" onclick="toggleDotMenu('dp-${p.id}')">⋮</button>
+        <div class="dot-dropdown" id="dp-${p.id}">
+          ${isCheque&&p.cheque_status==='pending'?`<div class="dot-item" onclick="openChequeStatus('${p.id}');closeDotMenus()">📋 Update Status</div>`:''}
+          <div class="dot-item danger" onclick="deleteDistPayment('${p.id}','${p.distributor_id}',${p.amount||0},'${p.cheque_status||''}','${p.type}');closeDotMenus()">🗑 Delete</div>
+        </div>
+      </div>
+    </div>`;
+  }).join(''):`<div class="empty-state"><div class="empty-icon">💳</div><p>No payments recorded</p></div>`;
+}
+
+function loadDistPayHistory(){renderDistPay();}
+
+function openAddDistPayment(){
+  // Populate distributor select
+  const sel=document.getElementById('dp-distributor');
+  sel.innerHTML='<option value="">-- Select Distributor --</option>'+distributorsCache.map(d=>`<option value="${d.id}">${d.name}${d.total_credit>0?' (Owes ₹'+d.total_credit.toFixed(2)+')':''}</option>`).join('');
+  // Pre-select if one is already selected on page
+  const pageSel=document.getElementById('distpay-select')?.value;
+  if(pageSel) sel.value=pageSel;
+  // Reset form
+  document.getElementById('dp-amount').value='';
+  document.getElementById('dp-cheque-no').value='';
+  document.getElementById('dp-bank').value='';
+  document.getElementById('dp-note').value='';
+  const now=new Date();now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+  document.getElementById('dp-date').value=now.toISOString().slice(0,16);
+  document.getElementById('dp-cheque-date').value=now.toISOString().slice(0,10);
+  // Set default type to cheque
+  dpType='cheque';
+  document.querySelectorAll('#distpay-modal .pay-mode-btn').forEach((b,i)=>{b.classList.remove('active','cash','upi','credit');if(i===0)b.classList.add('active','cash');});
+  document.getElementById('dp-cheque-fields').style.display='block';
+  document.getElementById('distpay-modal').classList.add('open');
+}
+
+async function saveDistPayment(){
+  const distId=document.getElementById('dp-distributor').value;
+  if(!distId)return toast('Select a distributor','error');
+  const amount=parseFloat(document.getElementById('dp-amount').value)||0;
+  if(!amount)return toast('Enter amount','error');
+  if(dpType==='cheque'&&!document.getElementById('dp-cheque-no').value.trim())return toast('Enter cheque number','error');
+  const btn=document.getElementById('save-dp-btn');btn.disabled=true;setSyncing();
+  const dist=distributorsCache.find(d=>d.id===distId);
+  const payment={
+    id:'dp_'+Date.now(),
+    distributor_id:distId,
+    distributor_name:dist?.name||'',
+    type:dpType,
+    amount,
+    cheque_no:dpType==='cheque'?document.getElementById('dp-cheque-no').value.trim():'',
+    bank:dpType==='cheque'?document.getElementById('dp-bank').value.trim():'',
+    cheque_date:dpType==='cheque'?document.getElementById('dp-cheque-date').value:'',
+    cheque_status:dpType==='cheque'?'pending':'cleared',
+    note:document.getElementById('dp-note').value.trim(),
+    date:document.getElementById('dp-date').value||new Date().toISOString(),
+    created_at:new Date().toISOString()
+  };
+  const{error}=await db.from('distributor_payments').insert(payment);
+  if(error){btn.disabled=false;setSyncError();toast('Error saving','error');return;}
+  // If cash/upi — immediately deduct from distributor balance
+  if(dpType!=='cheque'){
+    const newBal=Math.max(0,(dist?.total_credit||0)-amount);
+    await db.from('distributors').update({total_credit:newBal}).eq('id',distId);
+  }
+  btn.disabled=false;setSynced();closeModal('distpay-modal');
+  toast(dpType==='cheque'?'Cheque recorded ✓':'Payment of ₹'+amount.toFixed(2)+' recorded ✓');
+  await loadDistributo();await loadDistPayments();
+}
+
+async function loadDistributo(){
+  const{data}=await db.from('distributors').select('*').order('name');
+  distributorsCache=data||[];
+  populateDistPaySelect();
+}
+
+function populateDistPaySelect(){
+  const sel=document.getElementById('distpay-select');if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">-- All Distributors --</option>'+distributorsCache.map(d=>`<option value="${d.id}">${d.name}${d.total_credit>0?' (Owes ₹'+d.total_credit.toFixed(2)+')':''}</option>`).join('');
+  if(cur)sel.value=cur;
+}
+
+function openChequeStatus(paymentId){
+  const p=distPaymentsCache.find(x=>x.id===paymentId);if(!p)return;
+  currentChequePayment=p;
+  document.getElementById('cs-payment-id').value=paymentId;
+  const dist=distributorsCache.find(d=>d.id===p.distributor_id);
+  document.getElementById('cs-cheque-info').innerHTML=`
+    <div><strong>Distributor:</strong> ${dist?.name||'Unknown'}</div>
+    <div><strong>Amount:</strong> ₹${(p.amount||0).toFixed(2)}</div>
+    <div><strong>Cheque No:</strong> ${p.cheque_no||'—'} · <strong>Bank:</strong> ${p.bank||'—'}</div>
+    <div><strong>Cheque Date:</strong> ${p.cheque_date||'—'}</div>`;
+  document.getElementById('cheque-status-modal').classList.add('open');
+}
+
+async function updateChequeStatus(status){
+  const p=currentChequePayment;if(!p)return;
+  setSyncing();
+  await db.from('distributor_payments').update({cheque_status:status}).eq('id',p.id);
+  const dist=distributorsCache.find(d=>d.id===p.distributor_id);
+  if(status==='cleared'){
+    // Deduct amount from distributor balance
+    const newBal=Math.max(0,(dist?.total_credit||0)-(p.amount||0));
+    await db.from('distributors').update({total_credit:newBal}).eq('id',p.distributor_id);
+    toast('Cheque cleared! ₹'+p.amount.toFixed(2)+' deducted from balance ✓');
+  } else if(status==='bounced'){
+    // Add ₹1200 bounce charge to distributor balance
+    const newBal=(dist?.total_credit||0)+1200;
+    await db.from('distributors').update({total_credit:newBal}).eq('id',p.distributor_id);
+    toast('Cheque bounced. ₹1200 charge added to balance ⚠️');
+  } else {
+    toast('Status updated to Pending');
+  }
+  setSynced();closeModal('cheque-status-modal');
+  await loadDistributo();await loadDistPayments();
+}
+
+async function deleteDistPayment(id,distId,amount,chequeStatus,type){
+  if(!confirm('Delete this payment record?'))return;
+  setSyncing();
+  await db.from('distributor_payments').delete().eq('id',id);
+  // If it was a cleared cash/upi payment, add the amount back to distributor balance
+  if(type!=='cheque'||(type==='cheque'&&chequeStatus==='cleared')){
+    const dist=distributorsCache.find(d=>d.id===distId);
+    await db.from('distributors').update({total_credit:(dist?.total_credit||0)+amount}).eq('id',distId);
+  }
+  setSynced();toast('Deleted');
+  await loadDistributo();await loadDistPayments();
+}
+
+function openSetOpeningBalance(){
+  const sel=document.getElementById('ob-distributor');
+  sel.innerHTML='<option value="">-- Select Distributor --</option>'+distributorsCache.map(d=>`<option value="${d.id}">${d.name} (Current: ₹${(d.total_credit||0).toFixed(2)})</option>`).join('');
+  document.getElementById('ob-amount').value='';
+  document.getElementById('ob-note').value='';
+  document.getElementById('opening-bal-modal').classList.add('open');
+}
+
+async function saveOpeningBalance(){
+  const distId=document.getElementById('ob-distributor').value;
+  if(!distId)return toast('Select distributor','error');
+  const amount=parseFloat(document.getElementById('ob-amount').value)||0;
+  setSyncing();
+  await db.from('distributors').update({total_credit:amount}).eq('id',distId);
+  // Record as opening balance payment
+  await db.from('distributor_payments').insert({
+    id:'ob_'+Date.now(),distributor_id:distId,
+    distributor_name:distributorsCache.find(d=>d.id===distId)?.name||'',
+    type:'opening_balance',amount,cheque_status:'cleared',
+    note:document.getElementById('ob-note').value.trim()||'Opening balance',
+    date:new Date().toISOString(),created_at:new Date().toISOString()
+  });
+  setSynced();closeModal('opening-bal-modal');
+  toast('Opening balance set to ₹'+amount.toFixed(2)+' ✓');
+  await loadDistributo();await loadDistPayments();
 }
 
 </script>
