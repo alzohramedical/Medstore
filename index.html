@@ -369,6 +369,7 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     <div class="snav" onclick="nav('credit',this)"><div class="snav-icon">👤</div>Credit Customers</div>
     <div class="snav" onclick="nav('report',this)"><div class="snav-icon">📋</div>Daily Report</div>
     <div class="snav" onclick="nav('analytics',this)"><div class="snav-icon">📈</div>Analytics</div>
+    <div class="snav" onclick="nav('cashdrawer',this)"><div class="snav-icon">💵</div>Cash Drawer</div>
     <div class="sidebar-section">People</div>
     <div class="snav" onclick="nav('distributors',this)"><div class="snav-icon">🚚</div>Distributors</div>
     <div class="snav" onclick="nav('suppliers',this)"><div class="snav-icon">🏭</div>Suppliers</div>
@@ -599,6 +600,24 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   <div id="analytics-content"></div>
 </div>
 
+<!-- CASH DRAWER -->
+<div id="page-cashdrawer" class="page">
+  <div class="page-header"><h1>Cash Drawer 💵</h1><p>Track personal withdrawals from daily sales</p></div>
+  <!-- Summary cards -->
+  <div class="stat-grid" id="cd-stats" style="margin-bottom:16px;"></div>
+  <!-- Date filter -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;align-items:center;">
+    <button class="tab active" id="cd-tab-today" onclick="setCDTab(this,'today')">Today</button>
+    <button class="tab" id="cd-tab-week" onclick="setCDTab(this,'week')">This Week</button>
+    <button class="tab" id="cd-tab-month" onclick="setCDTab(this,'month')">This Month</button>
+    <button class="tab" id="cd-tab-all" onclick="setCDTab(this,'all')">All</button>
+  </div>
+  <div style="margin-bottom:14px;">
+    <button class="btn btn-primary" onclick="openAddWithdrawal()">+ Record Withdrawal</button>
+  </div>
+  <div id="cashdrawer-list"></div>
+</div>
+
 <!-- SUPPLIERS -->
 <div id="page-suppliers" class="page">
   <div class="page-header"><h1>Suppliers 🏭</h1><p>Other vendors & suppliers</p></div>
@@ -633,6 +652,9 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
     </div>
     <div onclick="nav('report',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
       <span style="font-size:24px;">📋</span><span style="font-size:11px;font-weight:800;">Report</span>
+    </div>
+    <div onclick="nav('cashdrawer',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
+      <span style="font-size:24px;">💵</span><span style="font-size:11px;font-weight:800;">Cash Drawer</span>
     </div>
     <div onclick="nav('lowstock',null);closeMoreMenu();" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--bg);border-radius:14px;cursor:pointer;">
       <span style="font-size:24px;">🏥</span><span style="font-size:11px;font-weight:800;">Stock Health</span>
@@ -783,6 +805,22 @@ input:focus,select:focus{outline:none;border-color:var(--p1);background:var(--wh
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeModal('dist-modal')">Cancel</button>
     <button class="btn btn-primary" id="save-dist-btn" onclick="saveDistributor()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Cash Drawer Withdrawal Modal -->
+<div class="modal-bg" id="withdrawal-modal">
+<div class="modal">
+  <div class="modal-handle"></div>
+  <h2>💵 Record Withdrawal</h2>
+  <div class="form-group"><label>Taken By *</label><input id="wd-person" placeholder="e.g. Abdul, Shahnood, Staff name…"/></div>
+  <div class="form-group"><label>Amount (₹) *</label><input type="number" id="wd-amount" inputmode="decimal" placeholder="0.00"/></div>
+  <div class="form-group"><label>Reason / Note</label><input id="wd-note" placeholder="e.g. Personal use, Tea money, Travel…"/></div>
+  <div class="form-group"><label>Date & Time</label><input type="datetime-local" id="wd-date"/></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('withdrawal-modal')">Cancel</button>
+    <button class="btn btn-primary" id="save-wd-btn" onclick="saveWithdrawal()" style="background:var(--grad-red);">Record 💵</button>
   </div>
 </div>
 </div>
@@ -1243,7 +1281,7 @@ function setSyncUI(color,label,pulse){
 // ── INIT ──
 async function init(){
   try{
-    const[m,s,p,su,dist,cc,ct,ret]=await Promise.all([
+    const[m,s,p,su,dist,cc,ct,ret,wdl]=await Promise.all([
       db.from('medicines').select('*').order('name'),
       db.from('sales').select('*').order('date',{ascending:false}),
       db.from('payments').select('*').order('created_at',{ascending:false}),
@@ -1252,11 +1290,13 @@ async function init(){
       db.from('credit_customers').select('*').order('name'),
       db.from('credit_transactions').select('*').order('date',{ascending:false}),
       db.from('returns').select('*').order('date',{ascending:false}),
+      db.from('withdrawals').select('*').order('date',{ascending:false}),
     ]);
     medsCache=m.data||[]; salesCache=s.data||[]; paymentsCache=p.data||[];
     suppliersCache=su.data||[]; distributorsCache=dist.data||[];
     creditCustomersCache=cc.data||[]; creditTxCache=ct.data||[];
     returnsCache=ret.data||[];
+    withdrawalsCache=wdl?.data||[];
     setSynced();
     document.getElementById('loading').style.display='none';
     // set default report date
@@ -1274,6 +1314,7 @@ async function init(){
       .on('postgres_changes',{event:'*',schema:'public',table:'credit_customers'},()=>loadCreditCustomers())
       .on('postgres_changes',{event:'*',schema:'public',table:'credit_transactions'},()=>loadCreditTx())
       .on('postgres_changes',{event:'*',schema:'public',table:'returns'},()=>loadReturns())
+      .on('postgres_changes',{event:'*',schema:'public',table:'withdrawals'},()=>loadWithdrawals())
       .subscribe();
   }catch(e){setSyncError();document.getElementById('loading').style.display='none';toast('Could not connect. Check internet.','error');}
 }
@@ -1291,7 +1332,7 @@ function updateLowStockBadge(){
 }
 
 // ── NAV ──
-const titles={dashboard:'Dashboard',sales:'New Sale',returns:'Returns',history:'History',stock:'Stock',lowstock:'Stock Health',purchase:'Stock Purchase',barcodes:'Barcodes',payments:'Payments',credit:'Credit',report:'Daily Report',analytics:'Analytics',distributors:'Distributors',suppliers:'Suppliers'};
+const titles={dashboard:'Dashboard',cashdrawer:'Cash Drawer',sales:'New Sale',returns:'Returns',history:'History',stock:'Stock',lowstock:'Stock Health',purchase:'Stock Purchase',barcodes:'Barcodes',payments:'Payments',credit:'Credit',report:'Daily Report',analytics:'Analytics',distributors:'Distributors',suppliers:'Suppliers'};
 function nav(page,el){
   try{
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1302,7 +1343,7 @@ function nav(page,el){
     console.log('Navigating to:', page, 'Element:', pageEl, 'Display:', window.getComputedStyle(pageEl).display);
     if(el)el.classList.add('active');
     document.getElementById('mob-page-title').textContent=titles[page]||'';
-    const fns={dashboard:renderDashboard,stock:renderStock,lowstock:renderLowStock,history:renderHistory,returns:renderReturns,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
+    const fns={dashboard:renderDashboard,cashdrawer:renderCashDrawer,stock:renderStock,lowstock:renderLowStock,history:renderHistory,returns:renderReturns,barcodes:renderBcList,payments:renderPayments,credit:renderCredit,report:renderReport,analytics:()=>{analyticsTab_='sales';document.querySelectorAll('#page-analytics .tab').forEach((t,i)=>t.classList.toggle('active',i===0));renderAnalytics();},distributors:()=>{renderDistributors();populateDistSelect();},suppliers:renderSuppliers,purchase:()=>{populateDistSelect();renderPurCart();}};
     fns[page]?.();
   }catch(e){console.error('Nav error:',e);toast('Error loading page: '+e.message,'error');}
 }
@@ -1354,17 +1395,25 @@ function renderStock(){
   const stockEl=document.getElementById('stock-list');
   if(!stockEl)return;
   const q=(document.getElementById('stock-search')||{}).value?.toLowerCase()||'';
-  const meds=medsCache.filter(m=>!q||m.name.toLowerCase().includes(q)||(m.barcode||'').includes(q));
   const now=new Date();
-  document.getElementById('stock-list').innerHTML=meds.length?meds.map((m,i)=>{
+  const meds=medsCache.filter(m=>!q||m.name.toLowerCase().includes(q)||(m.barcode||'').includes(q)||(m.composition||'').toLowerCase().includes(q));
+
+  // Find substitutes - medicines with same composition not already in results
+  const substituteMeds=q?medsCache.filter(m=>{
+    if(meds.find(x=>x.id===m.id))return false;
+    if(!m.composition)return false;
+    return meds.some(r=>r.composition&&r.composition.toLowerCase().split(',').map(c=>c.trim()).some(c=>c.length>3&&m.composition.toLowerCase().includes(c)));
+  }).sort((a,b)=>(a.mrp||0)-(b.mrp||0)).slice(0,5):[];
+
+  const renderItem=(m,i,isSubstitute=false)=>{
     const low=m.qty<=(m.low||10),expS=m.expiry&&(new Date(m.expiry+'-01')-now)/864e5<=60;
-    return`<div class="med-item">
-      <div class="med-avatar" style="background:${g(i)}">${catEmoji[m.cat]||'💊'}</div>
+    return`<div class="med-item" ${isSubstitute?'style="border-left:3px solid var(--g1);"':''}>
+      <div class="med-avatar" style="background:${['var(--grad-purple)','var(--grad-green)','var(--grad-blue)','var(--grad-pink)','var(--grad-red)','var(--grad-yellow)'][i%6]}">${{'Tablets':'💊','Capsules':'💉','Syrup':'🧴','Injection':'💉','Drops':'💧','Eye Drops':'👁','Ointment':'🧪','Cream':'🧴','Lotion':'🧴','Gel':'🧪','Powder':'🫙','Inhaler':'💨','OTC':'🏪','Oils':'🫙','Beverages':'🥤','Baby Care':'👶','Grooming':'🪒','General Items':'🛒'}[m.cat]||'💊'}</div>
       <div class="med-info">
-        <div class="med-name">${m.name}</div>
+        <div class="med-name">${m.name}${isSubstitute?' <span style="font-size:10px;background:rgba(6,214,160,.15);color:#059669;padding:1px 7px;border-radius:8px;font-weight:800;">Alt</span>':''}</div>
         <div class="med-meta">${m.mfr||'Unknown'} · ${m.pack||m.cat}${m.distributor_name?' · 🚚 '+m.distributor_name:''}</div>
         ${m.composition?`<div class="med-meta" style="color:var(--b1);">💊 ${m.composition}</div>`:''}
-        <div class="med-meta">${m.expiry?'📅 Exp: '+m.expiry+' · ':''}💰 Cost: ₹${(m.cost||0).toFixed(2)}</div>
+        <div class="med-meta">📅 ${m.expiry?'Exp: '+m.expiry+' · ':''} 💰 Cost: ₹${(m.cost||0).toFixed(2)}</div>
         <div class="med-badges">
           <span class="badge ${low?'badge-red':'badge-green'}">${m.qty} in stock</span>
           <span class="badge badge-purple">₹${m.mrp}</span>
@@ -1378,8 +1427,19 @@ function renderStock(){
           <div class="dot-item danger" onclick="deleteMed('${m.id}');closeDotMenus()">🗑 Delete</div>
         </div>
       </div>
-    </div>`;}).join(''):`<div class="empty-state"><div class="empty-icon">💊</div><p>No medicines found</p><span>Tap + Add or Import CSV</span></div>`;
+    </div>`;
+  };
+
+  let html='';
+  if(meds.length) html+=meds.map((m,i)=>renderItem(m,i,false)).join('');
+  if(substituteMeds.length){
+    html+=`<div style="padding:8px 14px;font-size:11px;font-weight:800;color:var(--text2);background:var(--bg);border-radius:var(--r);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px;">💊 Same Composition — Substitutes / Alternatives</div>`;
+    html+=substituteMeds.map((m,i)=>renderItem(m,meds.length+i,true)).join('');
+  }
+  if(!meds.length&&!substituteMeds.length) html=`<div class="empty-state"><div class="empty-icon">💊</div><p>No medicines found</p><span>Tap + Add or Import CSV</span></div>`;
+  document.getElementById('stock-list').innerHTML=html;
 }
+
 function openAddMed(){editMedId=null;document.getElementById('med-modal-title').textContent='Add Medicine';['m-name','m-barcode','m-mfr','m-mrp','m-cost','m-qty','m-batch','m-expiry','m-pack','m-composition'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-low').value='10';document.getElementById('m-cat').value='Tablets';document.getElementById('m-gst').value='0';document.getElementById('m-gst-amt').value='';populateMedDistSelect();document.getElementById('m-distributor').value='';document.getElementById('med-modal').classList.add('open');}
 function calcGstAmt(){
   const cost=parseFloat(document.getElementById('m-cost').value)||0;
@@ -2917,6 +2977,119 @@ function renderCustomerAnalytics(el){
       <div class="section-title" style="margin-bottom:12px;">📒 Outstanding Credit</div>
       ${overdueCredit.map(c=>`<div class="alert-row"><div><div class="alert-name">${c.name}</div><div style="font-size:11px;color:var(--text2);">${c.phone||'No phone'}</div></div><span class="badge badge-red">₹${(c.total_credit||0).toFixed(2)}</span></div>`).join('')}
     </div>`:''}`;
+}
+
+// ── CASH DRAWER ──
+let withdrawalsCache = [];
+let cdTab = 'today';
+
+async function loadWithdrawals(){
+  const{data}=await db.from('withdrawals').select('*').order('date',{ascending:false});
+  withdrawalsCache=data||[];
+  renderCashDrawer();
+}
+
+function setCDTab(el, tab){
+  document.querySelectorAll('#page-cashdrawer .tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  cdTab=tab;
+  renderCashDrawer();
+}
+
+function filterWithdrawals(){
+  const now=new Date();
+  const today=new Date();today.setHours(0,0,0,0);
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+  const monthStart=new Date();monthStart.setDate(1);monthStart.setHours(0,0,0,0);
+  if(cdTab==='today') return withdrawalsCache.filter(w=>new Date(w.date)>=today);
+  if(cdTab==='week') return withdrawalsCache.filter(w=>new Date(w.date)>=weekAgo);
+  if(cdTab==='month') return withdrawalsCache.filter(w=>new Date(w.date)>=monthStart);
+  return withdrawalsCache;
+}
+
+function renderCashDrawer(){
+  const el=document.getElementById('cashdrawer-list');
+  const statsEl=document.getElementById('cd-stats');
+  if(!el)return;
+  const filtered=filterWithdrawals();
+  const totalOut=filtered.reduce((a,w)=>a+(w.amount||0),0);
+  const todaySales=salesCache.filter(s=>{const d=new Date();d.setHours(0,0,0,0);return new Date(s.date)>=d;}).reduce((a,s)=>a+(s.total||0),0);
+  const net=todaySales-withdrawalsCache.filter(w=>{const d=new Date();d.setHours(0,0,0,0);return new Date(w.date)>=d;}).reduce((a,w)=>a+(w.amount||0),0);
+
+  if(statsEl) statsEl.innerHTML=`
+    <div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-label">Today's Sales</div><div class="stat-value green">₹${fmtN(todaySales)}</div></div>
+    <div class="stat-card"><div class="stat-icon red">💸</div><div class="stat-label">Withdrawn (period)</div><div class="stat-value red">₹${fmtN(totalOut)}</div></div>
+    <div class="stat-card"><div class="stat-icon blue">🏦</div><div class="stat-label">Net in Drawer</div><div class="stat-value ${net>=0?'green':'red'}">₹${fmtN(net)}</div></div>
+    <div class="stat-card"><div class="stat-icon yellow">📊</div><div class="stat-label">Withdrawals</div><div class="stat-value yellow">${filtered.length}</div></div>`;
+
+  // Group by person
+  const byPerson={};
+  filtered.forEach(w=>{
+    if(!byPerson[w.person])byPerson[w.person]=0;
+    byPerson[w.person]+=(w.amount||0);
+  });
+
+  el.innerHTML=`
+    ${Object.keys(byPerson).length>1?`<div class="section-card" style="margin-bottom:14px;">
+      <div class="section-title" style="margin-bottom:10px;">By Person</div>
+      ${Object.entries(byPerson).sort((a,b)=>b[1]-a[1]).map(([name,amt])=>`
+        <div class="alert-row"><span class="alert-name">👤 ${name}</span><span style="font-weight:900;color:var(--o1);">₹${amt.toFixed(2)}</span></div>`).join('')}
+    </div>`:''}
+    ${filtered.length?filtered.map(w=>`
+    <div class="med-item">
+      <div class="med-avatar" style="background:var(--grad-red);">💸</div>
+      <div class="med-info">
+        <div class="med-name">₹${(w.amount||0).toFixed(2)} — ${w.person}</div>
+        <div class="med-meta">${new Date(w.date).toLocaleString('en-IN')}</div>
+        ${w.note?`<div class="med-meta" style="color:var(--text2);">📝 ${w.note}</div>`:''}
+      </div>
+      <div class="dot-menu-wrap">
+        <button class="dot-btn" onclick="toggleDotMenu('wd-${w.id}')">⋮</button>
+        <div class="dot-dropdown" id="wd-${w.id}">
+          <div class="dot-item danger" onclick="deleteWithdrawal('${w.id}');closeDotMenus()">🗑 Delete</div>
+        </div>
+      </div>
+    </div>`).join(''):`<div class="empty-state"><div class="empty-icon">💵</div><p>No withdrawals for this period</p></div>`}`;
+}
+
+function openAddWithdrawal(){
+  document.getElementById('wd-person').value='';
+  document.getElementById('wd-amount').value='';
+  document.getElementById('wd-note').value='';
+  // Set current datetime
+  const now=new Date();
+  now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+  document.getElementById('wd-date').value=now.toISOString().slice(0,16);
+  document.getElementById('withdrawal-modal').classList.add('open');
+}
+
+async function saveWithdrawal(){
+  const person=document.getElementById('wd-person').value.trim();
+  if(!person)return toast('Enter person name','error');
+  const amount=parseFloat(document.getElementById('wd-amount').value)||0;
+  if(!amount)return toast('Enter amount','error');
+  const btn=document.getElementById('save-wd-btn');btn.disabled=true;setSyncing();
+  const dateVal=document.getElementById('wd-date').value;
+  const{error}=await db.from('withdrawals').insert({
+    id:'wd_'+Date.now(),
+    person,
+    amount,
+    note:document.getElementById('wd-note').value.trim(),
+    date:dateVal?new Date(dateVal).toISOString():new Date().toISOString()
+  });
+  btn.disabled=false;
+  if(error){setSyncError();toast('Error saving','error');return;}
+  setSynced();closeModal('withdrawal-modal');
+  toast(`₹${amount.toFixed(2)} withdrawal recorded ✓`);
+  await loadWithdrawals();
+}
+
+async function deleteWithdrawal(id){
+  if(!confirm('Delete this withdrawal record?'))return;
+  setSyncing();
+  await db.from('withdrawals').delete().eq('id',id);
+  setSynced();toast('Deleted');
+  await loadWithdrawals();
 }
 
 // ── UTILS ──
