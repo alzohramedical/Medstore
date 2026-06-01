@@ -3470,5 +3470,22 @@ function renderProfitReport(){
   `;
 }
 
+
+function toggleMoreMenu(){
+  const m=document.getElementById('more-menu');
+  const o=document.getElementById('more-overlay');
+  if(!m||!o)return;
+  if(m.style.display==='none'||m.style.display===''){
+    m.style.display='block';o.style.display='block';
+  } else {
+    m.style.display='none';o.style.display='none';
+  }
+}
+function closeMoreMenu(){
+  const m=document.getElementById('more-menu');
+  const o=document.getElementById('more-overlay');
+  if(m)m.style.display='none';
+  if(o)o.style.display='none';
+}
 </script>
 </body>
