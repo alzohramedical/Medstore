@@ -1887,93 +1887,80 @@ async function saveMed(){
   const cashDiscPct=parseFloat(document.getElementById('m-cash-disc').value)||0;
   const cashDiscAmt=rawCost*cashDiscPct/100;
   const effectiveCost=rawCost+gstAmt-cashDiscAmt;
-  const qty=parseInt(document.getElementById('m-qty').value)||0;
+  const qtyInput=parseInt(document.getElementById('m-qty').value)||0;
   const schemeVal=document.getElementById('m-scheme').value;
   const schemeCustom=document.getElementById('m-scheme-custom').value.trim();
   const parsed=parseScheme(schemeVal,schemeCustom);
-  // Final qty after scheme
-  const finalQty=parsed&&qty>0?Math.floor(qty/parsed.buy)*parsed.total+(qty%parsed.buy):qty;
-  // Effective cost per unit after scheme
-  const costPerUnit=parsed&&finalQty>0?(rawCost+gstAmt-cashDiscAmt)*(qty/finalQty):effectiveCost;
-
-  const distId=document.getElementById('m-distributor').value||null;
-  const distName=distId?(distributorsCache.find(d=>d.id===distId)||{}).name||'':'';
+  const finalQty=parsed&&qtyInput>0?Math.floor(qtyInput/parsed.buy)*parsed.total+(qtyInput%parsed.buy):qtyInput;
+  const costPerUnit=parsed&&finalQty>0?(rawCost+gstAmt-cashDiscAmt)*(qtyInput/finalQty):effectiveCost;
   const batchNo=document.getElementById('m-batch').value.trim();
   const expiry=document.getElementById('m-expiry').value||null;
+  const distId=document.getElementById('m-distributor').value||null;
+  const distName=distId?(distributorsCache.find(d=>d.id===distId)||{}).name||'':'';
+  const medId=editMedId||'med_'+Date.now();
 
-  // Medicine master record (no qty/cost/mrp - those live in batches)
+  // Build medicine record
   const med={
-    id:editMedId||'med_'+Date.now(),
-    name,
+    id:medId,name,
     barcode:document.getElementById('m-barcode').value.trim()||'BC'+Date.now().toString().slice(-8),
     mfr:document.getElementById('m-mfr').value.trim(),
     cat:document.getElementById('m-cat').value,
-    mrp, // keep latest mrp on medicine for display
-    cost:costPerUnit, // keep latest effective cost for display
-    raw_cost:rawCost,
-    gst:gstRate,
-    gst_amt:gstAmt,
-    cash_disc:cashDiscPct,
-    cash_disc_amt:cashDiscAmt,
-    scheme:schemeVal,
-    scheme_custom:schemeCustom,
+    mrp,cost:costPerUnit,raw_cost:rawCost,
+    gst:gstRate,gst_amt:gstAmt,
+    cash_disc:cashDiscPct,cash_disc_amt:cashDiscAmt,
+    scheme:schemeVal,scheme_custom:schemeCustom,
     scheme_label:parsed?parsed.label:'',
     low:parseInt(document.getElementById('m-low').value)||10,
     pack:document.getElementById('m-pack').value.trim(),
     composition:document.getElementById('m-composition').value.trim(),
-    distributor_id:distId,
-    distributor_name:distName,
-    drawer:document.getElementById('m-drawer').value.trim()
+    drawer:document.getElementById('m-drawer').value.trim(),
+    distributor_id:distId,distributor_name:distName
   };
 
   // Upsert medicine master
-  const{error}=await db.from('medicines').upsert(med);
-  if(error){btn.disabled=false;setSyncError();toast('Error: '+error.message,'error');return;}
+  const{error:medErr}=await db.from('medicines').upsert(med);
+  if(medErr){btn.disabled=false;setSyncError();toast('Error: '+medErr.message,'error');return;}
 
-  // Handle batch
-  if(qty>0 && batchNo){
-    // Check if batch already exists for this medicine
-    const existingBatch=batchesCache.find(b=>b.medicine_id===med.id&&b.batch_no===batchNo);
+  // Handle batch stock
+  if(finalQty>0){
+    const batchKey=batchNo||('B'+Date.now().toString().slice(-6));
+    // Check if this batch already exists
+    const existingBatch=batchesCache.find(b=>b.medicine_id===medId&&b.batch_no===batchKey);
     if(existingBatch){
-      // Update existing batch qty
+      // Update existing batch
       await db.from('stock_batches').update({
         qty:existingBatch.qty+finalQty,
         mrp,cost:costPerUnit,raw_cost:rawCost,
         gst:gstRate,gst_amt:gstAmt,cash_disc:cashDiscPct,
-        scheme:schemeVal,scheme_label:parsed?parsed.label:'',expiry
+        scheme:schemeVal,scheme_label:parsed?parsed.label:'',expiry,
+        drawer:document.getElementById('m-drawer').value.trim()
       }).eq('id',existingBatch.id);
     } else {
       // Create new batch
-      await db.from('stock_batches').insert({
+      const{error:batErr}=await db.from('stock_batches').insert({
         id:'bat_'+Date.now(),
-        medicine_id:med.id,
-        medicine_name:name,
-        batch_no:batchNo||'B'+Date.now().toString().slice(-6),
-        drawer:document.getElementById('m-drawer').value.trim(),
-        expiry,mrp,
-        cost:costPerUnit,
-        raw_cost:rawCost,
+        medicine_id:medId,medicine_name:name,
+        batch_no:batchKey,expiry,mrp,
+        cost:costPerUnit,raw_cost:rawCost,
         gst:gstRate,gst_amt:gstAmt,cash_disc:cashDiscPct,
         scheme:schemeVal,scheme_label:parsed?parsed.label:'',
         qty:finalQty,
-        drawer:document.getElementById('m-drawer')?.value.trim()||'',
+        drawer:document.getElementById('m-drawer').value.trim(),
         purchase_date:new Date().toISOString()
       });
+      if(batErr){console.error('Batch error:',batErr);}
     }
-    // Update medicine total qty
-    const allBatches=batchesCache.filter(b=>b.medicine_id===med.id&&b.batch_no!==batchNo);
-    const existingQty=allBatches.reduce((a,b)=>a+(b.qty||0),0);
-    const newTotalQty=existingQty+finalQty+(existingBatch?existingBatch.qty:0);
-    // Recalc will happen via realtime, but update locally
-    await db.from('medicines').update({qty:existingQty+finalQty+(existingBatch?existingBatch.qty:0)}).eq('id',med.id);
-  } else if(!editMedId){
-    // New medicine with no qty - just set 0
-    await db.from('medicines').update({qty:0}).eq('id',med.id);
+    // Reload batches first, then calculate correct total qty
+    const{data:freshBatches}=await db.from('stock_batches').select('*').order('purchase_date',{ascending:true});
+    batchesCache=freshBatches||[];
+    const totalQty=batchesCache.filter(b=>b.medicine_id===medId).reduce((a,b)=>a+(b.qty||0),0);
+    await db.from('medicines').update({qty:totalQty}).eq('id',medId);
   }
 
   btn.disabled=false;setSynced();closeModal('med-modal');
   toast(editMedId?'Updated ✓':'Added ✓');
-  // Reload
+
+  // Full reload
   const[mRes,bRes]=await Promise.all([
     db.from('medicines').select('*').order('name'),
     db.from('stock_batches').select('*').order('purchase_date',{ascending:true})
@@ -2602,8 +2589,8 @@ async function saveEditedSale(){const id=document.getElementById('edit-sale-id')
 
 // ── CREDIT CUSTOMERS EXTRA ──
 async function deleteCreditCustomer(id,name,bal){if(!confirm('Delete '+name+'?'+(bal>0?(' They owe ₹'+bal.toFixed(2)+'.'):'') ))return;await db.from('credit_customers').delete().eq('id',id);toast('Deleted');await loadCreditCustomers();}
-function openEditCreditCustomer(id){const c=creditCustomersCache.find(x=>x.id===id);if(!c)return;document.getElementById('cc-name').value=c.name||'';document.getElementById('cc-phone').value=c.phone||'';document.getElementById('cc-address').value=c.address||'';document.getElementById('cred-cust-modal').setAttribute('data-edit-id',id);document.getElementById('cred-cust-modal').classList.add('open');}
-async function updateCreditCustomer(){const id=document.getElementById('cred-cust-modal').getAttribute('data-edit-id');if(!id)return saveCreditCustomer();const name=document.getElementById('cc-name').value.trim();if(!name)return toast('Enter name','error');await db.from('credit_customers').update({name,phone:document.getElementById('cc-phone').value.trim(),address:document.getElementById('cc-address').value.trim()}).eq('id',id);closeModal('cred-cust-modal');toast('Updated ✓');await loadCreditCustomers();}
+function openEditCreditCustomer(id){const c=creditCustomersCache.find(x=>x.id===id);if(!c)return;document.getElementById('cc-name').value=c.name||'';document.getElementById('cc-phone').value=c.phone||'';document.getElementById('cc-address').value=c.address||'';document.getElementById('cred-modal').setAttribute('data-edit-id',id);document.getElementById('cred-modal').classList.add('open');}
+async function updateCreditCustomer(){const id=document.getElementById('cred-modal').getAttribute('data-edit-id');if(!id)return saveCreditCustomer();const name=document.getElementById('cc-name').value.trim();if(!name)return toast('Enter name','error');await db.from('credit_customers').update({name,phone:document.getElementById('cc-phone').value.trim(),address:document.getElementById('cc-address').value.trim()}).eq('id',id);closeModal('cred-modal');toast('Updated ✓');await loadCreditCustomers();}
 
 // ── MISC ──
 function toggleExpiryList(id){const el=document.getElementById(id);if(el)el.style.display=el.style.display==='none'?'block':'none';}
@@ -3486,6 +3473,11 @@ function closeMoreMenu(){
   const o=document.getElementById('more-overlay');
   if(m)m.style.display='none';
   if(o)o.style.display='none';
+}
+
+function downloadPDF(sale){
+  if(!sale)return toast('No invoice loaded','error');
+  downloadSalePDF(sale.id?sale.id:sale);
 }
 </script>
 </body>
